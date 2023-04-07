@@ -1,0 +1,59 @@
+{
+"type": "Page",
+            "id": "AAL",
+            "name": "reset_pw",
+            "workflows": {
+                "bTGyU": {
+                    "properties": {
+                        "element_id": "bTGyw0"
+                    },
+                    "type": "ButtonClicked",
+                    "id": "bTGyP",
+                    "actions": {
+                        "0": {
+                            "properties": {
+                                "new_password": {
+                                    "entries": {
+                                        "0": {
+                                            "next": {
+                                                "type": "Message",
+                                                "name": "get_data"
+                                            },
+                                            "properties": {
+                                                "element_id": "bTGyp0"
+                                            },
+                                            "type": "GetElement"
+                                        }
+                                    },
+                                    "type": "TextExpression"
+                                },
+                                "new_password_again": {
+                                    "entries": {
+                                        "0": {
+                                            "next": {
+                                                "type": "Message",
+                                                "name": "get_data"
+                                            },
+                                            "properties": {
+                                                "element_id": "bTGyj0"
+                                            },
+                                            "type": "GetElement"
+                                        }
+                                    },
+                                    "type": "TextExpression"
+                                }
+                            },
+                            "type": "ResetPassword",
+                            "id": "bTGyX"
+                        },
+                        "1": {
+                            "properties": {
+                                "element_id": "bTGYf"
+                            },
+                            "type": "ChangePage",
+                            "id": "bTGyV"
+                        }
+                    }
+                }
+            }
+        }

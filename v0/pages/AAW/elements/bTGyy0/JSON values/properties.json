@@ -1,0 +1,30 @@
+{
+"properties": {
+    "height": 720,
+    "left": 0,
+    "top": 0,
+    "width": 1080,
+    "zindex": 2,
+    "background_style": "bgcolor",
+    "bgcolor": "var(--color_background_default)",
+    "order": 4,
+    "row_gap": 32,
+    "use_gap": true,
+    "column_gap": 0,
+    "fit_height": true,
+    "margin_top": 0,
+    "padding_top": 0,
+    "margin_right": 0,
+    "padding_left": 0,
+    "single_width": false,
+    "margin_bottom": 0,
+    "min_width_css": "320px",
+    "padding_right": 0,
+    "single_height": false,
+    "min_height_css": "0px",
+    "padding_bottom": 0,
+    "horiz_alignment": "stretch",
+    "container_layout": "fixed",
+    "container_horiz_alignment": "center"
+}
+}

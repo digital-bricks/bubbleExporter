@@ -1,0 +1,522 @@
+{
+"AAW": {
+    "elements": {
+        "bTGyy0": {
+            "properties": {
+                "height": 720,
+                "left": 0,
+                "top": 0,
+                "width": 1080,
+                "zindex": 2,
+                "background_style": "bgcolor",
+                "bgcolor": "var(--color_background_default)",
+                "order": 4,
+                "row_gap": 32,
+                "use_gap": true,
+                "column_gap": 0,
+                "fit_height": true,
+                "margin_top": 0,
+                "padding_top": 0,
+                "margin_right": 0,
+                "padding_left": 0,
+                "single_width": false,
+                "margin_bottom": 0,
+                "min_width_css": "320px",
+                "padding_right": 0,
+                "single_height": false,
+                "min_height_css": "0px",
+                "padding_bottom": 0,
+                "horiz_alignment": "stretch",
+                "container_layout": "fixed",
+                "container_horiz_alignment": "center"
+            },
+            "states": {
+                "0": {
+                    "condition": {
+                        "next": {
+                            "args": 768,
+                            "type": "Message",
+                            "name": "less_or_equal_than"
+                        },
+                        "properties": {
+                            "name": "Current Page Width"
+                        },
+                        "type": "PageData"
+                    },
+                    "properties": {
+                        "padding_top": 128,
+                        "padding_left": 16,
+                        "padding_right": 16,
+                        "padding_bottom": 74
+                    },
+                    "type": "State"
+                }
+            },
+            "type": "Group",
+            "id": "bTGyM0",
+            "current_parent": "AAL.elements",
+            "default_name": "Group D",
+            "elements": {
+                "bTGzL0": {
+                    "properties": {
+                        "height": 378,
+                        "left": 0,
+                        "top": 165,
+                        "width": 1080,
+                        "zindex": 7,
+                        "background_style": "none",
+                        "order": 5,
+                        "row_gap": 32,
+                        "use_gap": true,
+                        "fit_width": true,
+                        "column_gap": 48,
+                        "fit_height": true,
+                        "single_width": false,
+                        "min_width_css": "0px",
+                        "single_height": false,
+                        "min_height_css": "0px",
+                        "vert_alignment": "stretch",
+                        "horiz_alignment": "stretch",
+                        "container_layout": "row",
+                        "container_horiz_alignment": "center"
+                    },
+                    "type": "Group",
+                    "id": "bTGyQ0",
+                    "default_name": "Group D",
+                    "elements": {
+                        "bTGzM0": {
+                            "properties": {
+                                "height": 293,
+                                "left": 330,
+                                "top": 8,
+                                "width": 420,
+                                "zindex": 11,
+                                "border_color": "rgba(0, 0, 0, 0.57)",
+                                "boxshadow_horizontal": 0,
+                                "border_roundness": 5,
+                                "boxshadow_style": "outset",
+                                "boxshadow_vertical": 7,
+                                "background_style": "bgcolor",
+                                "bgcolor": "var(--color_surface_default)",
+                                "border_style": "none",
+                                "boxshadow_blur": 30,
+                                "boxshadow_color": "rgba(95,98,173,0.3)",
+                                "boxshadow_spread": -10,
+                                "order": 1,
+                                "row_gap": 24,
+                                "use_gap": true,
+                                "fit_height": true,
+                                "padding_top": 24,
+                                "padding_left": 16,
+                                "single_width": false,
+                                "max_width_css": "420px",
+                                "min_width_css": "288px",
+                                "padding_right": 16,
+                                "single_height": false,
+                                "min_height_css": "0px",
+                                "padding_bottom": 24,
+                                "vert_alignment": "flex-start",
+                                "horiz_alignment": "flex-start",
+                                "container_layout": "column",
+                                "collapse_when_hidden": true,
+                                "container_vert_alignment": "center"
+                            },
+                            "type": "Group",
+                            "id": "bTGyf0",
+                            "current_parent": "bTJfJ1.elements",
+                            "default_name": "Group D",
+                            "elements": {
+                                "bTGzJ0": {
+                                    "properties": {
+                                        "text": {
+                                            "entries": {
+                                                "0": "Confirm"
+                                            },
+                                            "type": "TextExpression"
+                                        },
+                                        "height": 45,
+                                        "left": 16,
+                                        "top": 227,
+                                        "width": 150,
+                                        "zindex": 6,
+                                        "order": 2,
+                                        "fit_height": true,
+                                        "single_width": false,
+                                        "min_width_css": "0px",
+                                        "single_height": false,
+                                        "min_height_css": "45px",
+                                        "horiz_alignment": "stretch"
+                                    },
+                                    "type": "Button",
+                                    "id": "bTGyw0",
+                                    "current_parent": "bTJXL0.elements",
+                                    "default_name": "Button B",
+                                    "style": "Button_primary_button_",
+                                    "order": 4
+                                },
+                                "bTJXs0": {
+                                    "properties": {
+                                        "height": 171,
+                                        "left": 0,
+                                        "top": 0,
+                                        "width": 432,
+                                        "zindex": 7,
+                                        "background_style": "none",
+                                        "order": 1,
+                                        "row_gap": 24,
+                                        "use_gap": true,
+                                        "fit_width": true,
+                                        "fit_height": true,
+                                        "single_width": false,
+                                        "min_width_css": "0px",
+                                        "single_height": false,
+                                        "min_height_css": "0px",
+                                        "horiz_alignment": "stretch",
+                                        "container_layout": "column"
+                                    },
+                                    "type": "Group",
+                                    "id": "bTGyg0",
+                                    "default_name": "Group D",
+                                    "elements": {
+                                        "bTJiD": {
+                                            "properties": {
+                                                "height": 79,
+                                                "left": 0,
+                                                "top": 0,
+                                                "width": 432,
+                                                "zindex": 7,
+                                                "background_style": "none",
+                                                "order": 4,
+                                                "row_gap": 4,
+                                                "use_gap": true,
+                                                "fit_width": true,
+                                                "fit_height": true,
+                                                "single_width": false,
+                                                "min_width_css": "0px",
+                                                "single_height": false,
+                                                "min_height_css": "0px",
+                                                "horiz_alignment": "stretch",
+                                                "container_layout": "column"
+                                            },
+                                            "type": "Group",
+                                            "id": "bTGyh0",
+                                            "current_parent": "bTJhg.elements",
+                                            "default_name": "Group D",
+                                            "elements": {
+                                                "bTJhP": {
+                                                    "properties": {
+                                                        "text": {
+                                                            "entries": {
+                                                                "0": "Confirm new password"
+                                                            },
+                                                            "type": "TextExpression"
+                                                        },
+                                                        "height": 45,
+                                                        "left": 0,
+                                                        "top": 0,
+                                                        "width": 200,
+                                                        "zindex": 3,
+                                                        "order": 1,
+                                                        "fit_height": true,
+                                                        "single_width": false,
+                                                        "min_width_css": "0px",
+                                                        "single_height": false,
+                                                        "min_height_css": "0px",
+                                                        "horiz_alignment": "stretch"
+                                                    },
+                                                    "type": "Text",
+                                                    "id": "bTGyi0",
+                                                    "current_parent": "bTJXL0.elements",
+                                                    "default_name": "Text B",
+                                                    "style": "Text_body_small_",
+                                                    "order": 3
+                                                },
+                                                "bTJXe0": {
+                                                    "properties": {
+                                                        "font_face": "var(--font_default):::400",
+                                                        "height": 48,
+                                                        "left": 0,
+                                                        "top": 0,
+                                                        "width": 250,
+                                                        "zindex": 4,
+                                                        "mandatory": true,
+                                                        "border_roundness": 5,
+                                                        "content_format": "password",
+                                                        "placeholder": {
+                                                            "entries": {
+                                                                "0": "********"
+                                                            },
+                                                            "type": "TextExpression"
+                                                        },
+                                                        "order": 2,
+                                                        "fit_height": false,
+                                                        "font_family": "var(--font_default)",
+                                                        "padding_top": 6,
+                                                        "padding_left": 6,
+                                                        "single_width": false,
+                                                        "min_width_css": "0px",
+                                                        "padding_right": 6,
+                                                        "single_height": true,
+                                                        "min_height_css": "48px",
+                                                        "padding_bottom": 6,
+                                                        "horiz_alignment": "stretch",
+                                                        "not_submit_on_enter": true
+                                                    },
+                                                    "states": {
+                                                        "0": {
+                                                            "condition": {
+                                                                "next": {
+                                                                    "type": "Message",
+                                                                    "name": "is_focused"
+                                                                },
+                                                                "type": "ThisElement"
+                                                            },
+                                                            "properties": {
+                                                                "border_color": "#52A8EC",
+                                                                "boxshadow_horizontal": 0,
+                                                                "boxshadow_style": "outset",
+                                                                "boxshadow_vertical": 0,
+                                                                "boxshadow_blur": 2,
+                                                                "boxshadow_color": "#52A8EC"
+                                                            },
+                                                            "type": "State"
+                                                        },
+                                                        "1": {
+                                                            "condition": {
+                                                                "next": {
+                                                                    "type": "Message",
+                                                                    "name": "isnt_valid"
+                                                                },
+                                                                "type": "ThisElement"
+                                                            },
+                                                            "properties": {
+                                                                "border_color": "#FF0000",
+                                                                "boxshadow_horizontal": 0,
+                                                                "boxshadow_style": "outset",
+                                                                "boxshadow_vertical": 0,
+                                                                "boxshadow_blur": 2,
+                                                                "boxshadow_color": "#FF0000"
+                                                            },
+                                                            "type": "State"
+                                                        }
+                                                    },
+                                                    "type": "Input",
+                                                    "id": "bTGyj0",
+                                                    "default_name": "Input B"
+                                                }
+                                            },
+                                            "name": "Group Confirm Password",
+                                            "order": 3
+                                        },
+                                        "bTJXu0": {
+                                            "properties": {
+                                                "height": 79,
+                                                "left": 0,
+                                                "top": 0,
+                                                "width": 432,
+                                                "zindex": 6,
+                                                "background_style": "none",
+                                                "order": 3,
+                                                "row_gap": 4,
+                                                "use_gap": true,
+                                                "fit_width": true,
+                                                "fit_height": true,
+                                                "single_width": false,
+                                                "min_width_css": "0px",
+                                                "single_height": false,
+                                                "min_height_css": "0px",
+                                                "horiz_alignment": "stretch",
+                                                "container_layout": "column"
+                                            },
+                                            "type": "Group",
+                                            "id": "bTGyn0",
+                                            "current_parent": "bTJXL0.elements",
+                                            "default_name": "Group D",
+                                            "elements": {
+                                                "bTJhP": {
+                                                    "properties": {
+                                                        "text": {
+                                                            "entries": {
+                                                                "0": "New password"
+                                                            },
+                                                            "type": "TextExpression"
+                                                        },
+                                                        "height": 45,
+                                                        "left": 0,
+                                                        "top": 0,
+                                                        "width": 200,
+                                                        "zindex": 3,
+                                                        "order": 1,
+                                                        "fit_height": true,
+                                                        "single_width": false,
+                                                        "min_width_css": "0px",
+                                                        "single_height": false,
+                                                        "min_height_css": "0px",
+                                                        "horiz_alignment": "stretch"
+                                                    },
+                                                    "type": "Text",
+                                                    "id": "bTGyo0",
+                                                    "current_parent": "bTJXL0.elements",
+                                                    "default_name": "Text B",
+                                                    "style": "Text_body_small_",
+                                                    "order": 3
+                                                },
+                                                "bTJXe0": {
+                                                    "properties": {
+                                                        "font_face": "var(--font_default):::400",
+                                                        "height": 48,
+                                                        "left": 0,
+                                                        "top": 0,
+                                                        "width": 250,
+                                                        "zindex": 4,
+                                                        "mandatory": true,
+                                                        "border_roundness": 5,
+                                                        "content_format": "password",
+                                                        "placeholder": {
+                                                            "entries": {
+                                                                "0": "********"
+                                                            },
+                                                            "type": "TextExpression"
+                                                        },
+                                                        "order": 2,
+                                                        "fit_height": false,
+                                                        "font_family": "var(--font_default)",
+                                                        "padding_top": 6,
+                                                        "padding_left": 6,
+                                                        "single_width": false,
+                                                        "min_width_css": "0px",
+                                                        "padding_right": 6,
+                                                        "single_height": true,
+                                                        "min_height_css": "48px",
+                                                        "padding_bottom": 6,
+                                                        "horiz_alignment": "stretch",
+                                                        "not_submit_on_enter": true
+                                                    },
+                                                    "states": {
+                                                        "0": {
+                                                            "condition": {
+                                                                "next": {
+                                                                    "type": "Message",
+                                                                    "name": "is_focused"
+                                                                },
+                                                                "type": "ThisElement"
+                                                            },
+                                                            "properties": {
+                                                                "border_color": "#52A8EC",
+                                                                "boxshadow_horizontal": 0,
+                                                                "boxshadow_style": "outset",
+                                                                "boxshadow_vertical": 0,
+                                                                "boxshadow_blur": 2,
+                                                                "boxshadow_color": "#52A8EC"
+                                                            },
+                                                            "type": "State"
+                                                        },
+                                                        "1": {
+                                                            "condition": {
+                                                                "next": {
+                                                                    "type": "Message",
+                                                                    "name": "isnt_valid"
+                                                                },
+                                                                "type": "ThisElement"
+                                                            },
+                                                            "properties": {
+                                                                "border_color": "#FF0000",
+                                                                "boxshadow_horizontal": 0,
+                                                                "boxshadow_style": "outset",
+                                                                "boxshadow_vertical": 0,
+                                                                "boxshadow_blur": 2,
+                                                                "boxshadow_color": "#FF0000"
+                                                            },
+                                                            "type": "State"
+                                                        }
+                                                    },
+                                                    "type": "Input",
+                                                    "id": "bTGyp0",
+                                                    "default_name": "Input B"
+                                                }
+                                            },
+                                            "name": "Group Password",
+                                            "order": 3
+                                        }
+                                    },
+                                    "name": "Group Content"
+                                }
+                            },
+                            "name": "Card Reset Password",
+                            "order": 4
+                        }
+                    },
+                    "name": "Group Container"
+                },
+                "bTKVr0": {
+                    "properties": {
+                        "text": {
+                            "entries": {
+                                "0": "Reset your password"
+                            },
+                            "type": "TextExpression"
+                        },
+                        "bold": false,
+                        "font_face": "var(--font_default):::600",
+                        "height": 52,
+                        "left": 0,
+                        "top": 81,
+                        "width": 1080,
+                        "zindex": 8,
+                        "font_alignment": "center",
+                        "font_color": "var(--color_text_default)",
+                        "font_size": 40,
+                        "line_height": 1.2,
+                        "order": 4,
+                        "tag_type": "h2",
+                        "fit_height": true,
+                        "font_family": "var(--font_default)",
+                        "font_weight": "600",
+                        "padding_top": 0,
+                        "padding_left": 0,
+                        "single_width": false,
+                        "margin_bottom": 0,
+                        "min_width_css": "0px",
+                        "padding_right": 0,
+                        "single_height": false,
+                        "min_height_css": "0px",
+                        "padding_bottom": 0,
+                        "horiz_alignment": "stretch",
+                        "nonant_alignment": "ba"
+                    },
+                    "type": "Text",
+                    "id": "bTGyx0",
+                    "current_parent": "bTJBW.elements",
+                    "default_name": "Text B",
+                    "name": "Text Header",
+                    "order": 3
+                }
+            },
+            "name": "Group Reset Password",
+            "order": 6
+        },
+        "length": 1
+    },
+    "properties": {
+        "height": 900,
+        "left": 0,
+        "top": 0,
+        "width": 1080,
+        "title": {
+            "entries": {
+                "0": "Bubble | No-code apps"
+            },
+            "type": "TextExpression"
+        },
+        "repeat_background_horizontal": true,
+        "repeat_background_vertical": true,
+        "preset_width": "custom",
+        "new_responsive": true,
+        "element_version": 3,
+        "backdrop_bgcolor": "var(--color_background_default)"
+    },
+    "type": "Page",
+    "id": "AAL",
+    "name": "reset_pw"
+}
+}

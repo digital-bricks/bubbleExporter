@@ -1,0 +1,146 @@
+{
+"AAX": {
+    "elements": {
+        "bTGlI": {
+            "properties": {
+                "height": 900,
+                "left": 0,
+                "top": 0,
+                "width": 1080,
+                "zindex": 31,
+                "background_gradient_direction": "left",
+                "background_style": "bgcolor",
+                "bgcolor": "var(--color_background_default)",
+                "background_gradient_from": "rgba(50, 67, 128, 1)",
+                "background_gradient_to": "rgba(42, 61, 130, 1)"
+            },
+            "type": "Group",
+            "id": "bTGkv",
+            "current_parent": "AAU.elements",
+            "default_name": "Group A",
+            "elements": {
+                "bTGMt": {
+                    "properties": {
+                        "height": 665,
+                        "left": 20,
+                        "top": 20,
+                        "width": 1040,
+                        "zindex": 3,
+                        "max_width": 140,
+                        "min_width": 35,
+                        "use_max_width": true
+                    },
+                    "type": "Group",
+                    "id": "bTGkx",
+                    "default_name": "Group A",
+                    "elements": {
+                        "bTGNK": {
+                            "properties": {
+                                "height": 315,
+                                "left": 40,
+                                "top": 119,
+                                "width": 565,
+                                "zindex": 4,
+                                "min_width": 72.70833333333333
+                            },
+                            "type": "Group",
+                            "id": "bTGky",
+                            "default_name": "Group A",
+                            "elements": {
+                                "bTGiK": {
+                                    "properties": {
+                                        "text": {
+                                            "entries": {
+                                                "0": "The page you're looking for does not exist.\n\nThis page has got everything you need to get started. If you're already a Bubble Pro you can delete this boilerplate and design your own 404."
+                                            },
+                                            "type": "TextExpression"
+                                        },
+                                        "bold": false,
+                                        "font_face": "var(--font_default):::regular",
+                                        "height": 105,
+                                        "left": 0,
+                                        "top": 87,
+                                        "width": 527,
+                                        "zindex": 5,
+                                        "font_color": "rgba(var(--color_text_default_rgb), 0.88)",
+                                        "font_size": 16,
+                                        "line_height": 1.4,
+                                        "min_width": 88.875,
+                                        "font_family": "var(--font_default)",
+                                        "font_weight": "400",
+                                        "padding_top": 0,
+                                        "padding_left": 0,
+                                        "padding_right": 0,
+                                        "use_max_width": true,
+                                        "padding_bottom": 0,
+                                        "responsive_alignment": "left"
+                                    },
+                                    "type": "Text",
+                                    "id": "bTGlD",
+                                    "current_parent": "bTGMW.elements",
+                                    "default_name": "Text B"
+                                },
+                                "bTHAP0": {
+                                    "properties": {
+                                        "text": {
+                                            "entries": {
+                                                "0": "Oops! 404 error"
+                                            },
+                                            "type": "TextExpression"
+                                        },
+                                        "bold": false,
+                                        "font_face": "var(--font_default):::700",
+                                        "height": 82,
+                                        "left": 0,
+                                        "top": 1,
+                                        "width": 403,
+                                        "zindex": 2,
+                                        "font_color": "rgba(var(--color_text_default_rgb), 0.88)",
+                                        "font_size": 50,
+                                        "line_height": 1.4,
+                                        "tag_type": "h1",
+                                        "font_family": "var(--font_default)",
+                                        "font_weight": "700",
+                                        "padding_top": 0,
+                                        "padding_left": 0,
+                                        "padding_right": 0,
+                                        "padding_bottom": 0,
+                                        "responsive_alignment": "left"
+                                    },
+                                    "type": "Text",
+                                    "id": "bTGlA",
+                                    "default_name": "Text A"
+                                }
+                            },
+                            "name": "Group text content",
+                            "style": "Group_default_group_"
+                        }
+                    },
+                    "name": "Group container",
+                    "style": "Group_default_group_"
+                }
+            },
+            "name": "Group main"
+        },
+        "length": 1
+    },
+    "properties": {
+        "height": 1699,
+        "left": 0,
+        "top": 0,
+        "width": 1080,
+        "title": {
+            "entries": {
+                "0": "Bubble | No-code apps"
+            },
+            "type": "TextExpression"
+        },
+        "preset_width": "custom",
+        "new_responsive": true,
+        "element_version": 3
+    },
+    "type": "Page",
+    "id": "AAU",
+    "name": "404"
+}
+}

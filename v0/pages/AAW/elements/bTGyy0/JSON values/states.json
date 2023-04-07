@@ -1,0 +1,24 @@
+{
+"states": {
+    "0": {
+        "condition": {
+            "next": {
+                "args": 768,
+                "type": "Message",
+                "name": "less_or_equal_than"
+            },
+            "properties": {
+                "name": "Current Page Width"
+            },
+            "type": "PageData"
+        },
+        "properties": {
+            "padding_top": 128,
+            "padding_left": 16,
+            "padding_right": 16,
+            "padding_bottom": 74
+        },
+        "type": "State"
+    }
+}
+}

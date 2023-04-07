@@ -1,0 +1,20 @@
+{
+"properties": {
+    "height": 900,
+    "left": 0,
+    "top": 0,
+    "width": 1080,
+    "title": {
+        "entries": {
+            "0": "Bubble | No-code apps"
+        },
+        "type": "TextExpression"
+    },
+    "repeat_background_horizontal": true,
+    "repeat_background_vertical": true,
+    "preset_width": "custom",
+    "new_responsive": true,
+    "element_version": 3,
+    "backdrop_bgcolor": "var(--color_background_default)"
+}
+}
