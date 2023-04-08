@@ -6,6 +6,7 @@ The final evaluator is the combination of the first two evaluators. It checks if
 
 ChatGPT cleaned up condition JSON:
 
+```JSON
 {
     "type": "Message",
     "name": "and_",
@@ -61,3 +62,4 @@ ChatGPT cleaned up condition JSON:
         "name": "logged_in"
     }
 }
+``

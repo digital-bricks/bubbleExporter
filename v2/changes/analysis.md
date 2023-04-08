@@ -1,5 +1,6 @@
 New elements are added in the 'elements' object of the page object. Those elements receive ids. The opening id of the element doesn't appear to be referenced elsewhere, but the value "id" within that object is used whenever it's referenced as a parent of a child element or being attached to a workflow. 
 
+```JSON
 "bTGyg": {
         "properties": {
             "text": {
@@ -26,6 +27,7 @@ New elements are added in the 'elements' object of the page object. Those elemen
         "default_name": "Button A",
         "style": "Button_primary_button_"
     }
+```
 
 The initial opening ID is however used in the id_to_path section of the JSON, indicating it's position in the elements tree, for example : 
 
@@ -41,6 +43,7 @@ The initial opening ID is however used in the id_to_path section of the JSON, in
  
  At the end of object "0"'s properties, we see "thing_type": "custom.message". This is definitely the method by which Bubble identifies data tables, as custom is a user created table (as opposed to the User table for example) and the original name of the table given at its creation is represented in lower case after the dot. Why this data type is represented twice in object "0" I'm not sure yet.
 
+```JSON
  "workflows": {
     "bTGym": {
         "properties": {
@@ -82,7 +85,7 @@ The initial opening ID is however used in the id_to_path section of the JSON, in
         }
     },
     "length": 0
-
+```
 
     To better understand, we could compare to the 'Reset password' workflow from v1. Here there are two inputs being targetted using dynamic expressions. The workflow action has only two required fields built into the action, quite different in key name ("new_password" and "new_password_again") to the above custom field represented by "initial_values". 
     
@@ -90,6 +93,7 @@ The initial opening ID is however used in the id_to_path section of the JSON, in
     
     Since the key "type" under "next" is again "Message" and this reset_pw page had no mention of the data table Message I created, I can conclude that this "Message" value is not related to a data table, but rather something again to do with the dynamic expression. This means the data table being targetted in the 'Create a thing..." workflow action above is indeed contained in the key "thing_type": "custom.message".
 
+```JSON
     {
 "0": {
     "properties": {
@@ -128,11 +132,13 @@ The initial opening ID is however used in the id_to_path section of the JSON, in
     "id": "bTGyX"
 }
 }
+```
 
 Changing the page properties revealed a couple of things about how the new responsive engine CSS values are expressed. The page being in new responsive or not is shown in "new_responsive": true. The type of group container is expressed as "container_layout": "column". Automatic row gaps between elements in a column container are simply represented by "row_gap": 20. We also see how Bubble pages are identified and stored, as "type": "Page" and "id": "bTGYf" and "name": "index".
 
 One mysterious value to explore is "element_versin": 3. Another is why all Bubble elements seem to contain "left" and "top" numbers, as if these were some kind of CSS spacing but missing the bottom and right values.
 
+```JSON
 {
 "properties": {
                 "height": 767,
@@ -163,3 +169,4 @@ One mysterious value to explore is "element_versin": 3. Another is why all Bubbl
             "id": "bTGYf",
             "name": "index"
         }
+```

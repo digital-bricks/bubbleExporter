@@ -4,6 +4,7 @@ We see once again the key 'next' which seems to indicate a dynamic expression. I
 
 There's the "type": "GetElement" key pair which makes the dynamic expression target a specific element for the "get_data" part of the expression.
 
+```JSON
 "states": {
         "0": {
             "condition": {
@@ -26,3 +27,4 @@ There's the "type": "GetElement" key pair which makes the dynamic expression tar
             "type": "State"
         }
     },
+```
