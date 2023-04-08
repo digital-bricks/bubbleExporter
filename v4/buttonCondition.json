@@ -1,0 +1,80 @@
+{
+"bTGyj": {
+    "properties": {
+        "text": {
+            "entries": {
+                "0": "Send to Hackeet"
+            },
+            "type": "TextExpression"
+        },
+        "height": 45,
+        "left": 186,
+        "top": 348,
+        "width": 150,
+        "zindex": 4,
+        "order": 3,
+        "fit_height": true,
+        "single_width": true,
+        "min_width_css": "150px",
+        "single_height": false,
+        "min_height_css": "45px",
+        "horiz_alignment": "flex-start"
+    },
+    "states": {
+        "0": {
+            "condition": {
+                "next": {
+                    "next": {
+                        "args": {
+                            "next": {
+                                "next": {
+                                    "args": "test1",
+                                    "type": "Message",
+                                    "name": "contains"
+                                },
+                                "type": "Message",
+                                "name": "get_data"
+                            },
+                            "properties": {
+                                "element_id": "bTGyY"
+                            },
+                            "type": "GetElement"
+                        },
+                        "next": {
+                            "args": {
+                                "next": {
+                                    "args": "test2",
+                                    "type": "Message",
+                                    "name": "equals"
+                                },
+                                "properties": {
+                                    "parameter_name": {
+                                        "entries": {
+                                            "0": "test_url_parameter"
+                                        },
+                                        "type": "TextExpression"
+                                    }
+                                },
+                                "type": "GetParamFromUrl"
+                            },
+                            "type": "Message",
+                            "name": "or_"
+                        },
+                        "type": "Message",
+                        "name": "and_"
+                    },
+                    "type": "Message",
+                    "name": "logged_in"
+                },
+                "type": "CurrentUser"
+            },
+            "type": "State"
+        }
+    },
+    "type": "Button",
+    "id": "bTGye",
+    "current_parent": "bTGYf",
+    "default_name": "Button B",
+    "style": "Button_primary_button_"
+}
+}

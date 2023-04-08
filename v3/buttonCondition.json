@@ -1,0 +1,50 @@
+{
+"bTGyg": {
+    "properties": {
+        "text": {
+            "entries": {
+                "0": "Write to Bubble"
+            },
+            "type": "TextExpression"
+        },
+        "height": 45,
+        "left": 186,
+        "top": 285,
+        "width": 150,
+        "zindex": 3,
+        "order": 2,
+        "fit_height": true,
+        "single_width": true,
+        "min_width_css": "150px",
+        "single_height": false,
+        "min_height_css": "45px",
+        "horiz_alignment": "flex-start"
+    },
+    "states": {
+        "0": {
+            "condition": {
+                "next": {
+                    "next": {
+                        "type": "Message",
+                        "name": "is_empty"
+                    },
+                    "type": "Message",
+                    "name": "get_data"
+                },
+                "properties": {
+                    "element_id": "bTGyY"
+                },
+                "type": "GetElement"
+            },
+            "properties": {
+                "is_visible": false
+            },
+            "type": "State"
+        }
+    },
+    "type": "Button",
+    "id": "bTGyb",
+    "default_name": "Button A",
+    "style": "Button_primary_button_"
+}
+}
