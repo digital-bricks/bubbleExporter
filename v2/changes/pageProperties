@@ -1,0 +1,30 @@
+{
+"properties": {
+                "height": 767,
+                "left": 0,
+                "top": 0,
+                "width": 1080,
+                "title": {
+                    "entries": {
+                        "0": "Bubble | No-code apps"
+                    },
+                    "type": "TextExpression"
+                },
+                "repeat_background_horizontal": true,
+                "repeat_background_vertical": true,
+                "row_gap": 20,
+                "use_gap": true,
+                "min_width_px": 0,
+                "preset_width": "custom",
+                "default_width": 1080,
+                "min_height_px": 767,
+                "new_responsive": true,
+                "element_version": 3,
+                "backdrop_bgcolor": "rgba(255, 255, 255, 1)",
+                "container_layout": "column",
+                "backdrop_background_style": "bgcolor"
+            },
+            "type": "Page",
+            "id": "bTGYf",
+            "name": "index"
+        }

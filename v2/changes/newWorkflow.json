@@ -1,0 +1,44 @@
+{
+"workflows": {
+    "bTGym": {
+        "properties": {
+            "element_id": "bTGyb"
+        },
+        "type": "ButtonClicked",
+        "id": "bTGyh",
+        "actions": {
+            "0": {
+                "properties": {
+                    "initial_values": {
+                        "0": {
+                            "key": "text_text",
+                            "value": {
+                                "entries": {
+                                    "0": {
+                                        "next": {
+                                            "type": "Message",
+                                            "name": "get_data"
+                                        },
+                                        "properties": {
+                                            "element_id": "bTGyY"
+                                        },
+                                        "type": "GetElement"
+                                    }
+                                },
+                                "type": "TextExpression"
+                            },
+                            "action": {
+                                "type": "Empty"
+                            }
+                        }
+                    },
+                    "thing_type": "custom.message"
+                },
+                "type": "NewThing",
+                "id": "bTGyk"
+            }
+        }
+    },
+    "length": 0
+}
+}

@@ -1,0 +1,78 @@
+{
+"elements": {
+    "bTGyd": {
+        "properties": {
+            "height": 48,
+            "left": 172,
+            "top": 208,
+            "width": 250,
+            "zindex": 2,
+            "order": 1,
+            "fit_height": false,
+            "single_width": true,
+            "min_width_css": "250px",
+            "single_height": true,
+            "min_height_css": "48px",
+            "horiz_alignment": "flex-start"
+        },
+        "type": "Input",
+        "id": "bTGyY",
+        "default_name": "Input A",
+        "style": "Input_standard_input_"
+    },
+    "bTGyg": {
+        "properties": {
+            "text": {
+                "entries": {
+                    "0": "Write to Bubble"
+                },
+                "type": "TextExpression"
+            },
+            "height": 45,
+            "left": 186,
+            "top": 285,
+            "width": 150,
+            "zindex": 3,
+            "order": 2,
+            "fit_height": true,
+            "single_width": true,
+            "min_width_css": "150px",
+            "single_height": false,
+            "min_height_css": "45px",
+            "horiz_alignment": "flex-start"
+        },
+        "type": "Button",
+        "id": "bTGyb",
+        "default_name": "Button A",
+        "style": "Button_primary_button_"
+    },
+    "bTGyj": {
+        "properties": {
+            "text": {
+                "entries": {
+                    "0": "Send to Hackeet"
+                },
+                "type": "TextExpression"
+            },
+            "height": 45,
+            "left": 186,
+            "top": 348,
+            "width": 150,
+            "zindex": 4,
+            "order": 3,
+            "fit_height": true,
+            "single_width": true,
+            "min_width_css": "150px",
+            "single_height": false,
+            "min_height_css": "45px",
+            "horiz_alignment": "flex-start"
+        },
+        "type": "Button",
+        "id": "bTGye",
+        "current_parent": "bTGYf",
+        "default_name": "Button B",
+        "style": "Button_primary_button_"
+    },
+    "length": 2
+}
+}
