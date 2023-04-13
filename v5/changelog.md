@@ -1,12 +1,12 @@
 # Changelog
 
-## version 4
+## version 5
 
 ## Changes
 
 ### Summary
 
-Added a longer condition on the index page to the 'Send to Hackeet' button to test how dynamic expressions work.
+Added the API Connector plugin and a test API call with GET request to see if the JSON export includes plugins, and API calls (very important to many Bubble apps).
 
 ### Elements
 
@@ -30,7 +30,10 @@ None
 
 ### API calls
 
-None
+- Added 'Test API' to the API Connector
+- Added 'Test Call' GET request to the 'Test API'
+- Added 'https://jsonplaceholder.typicode.com/todos/1' as the Test Call URL
+- Executed a successful test call
 
 ### Plugins
 
@@ -38,10 +41,7 @@ None
 
 ### Element conditions
 
-Added a condition to the 'Send to Hackeet' element:
-- If the current user is logged in AND
-- If 'Input A's vaue contains 'test1' OR
-- If 'Get URL parameter' value for 'test_url_parameter' contains 'test2'
+None
 
 ### Workflow conditions
 

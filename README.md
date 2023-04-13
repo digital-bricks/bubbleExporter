@@ -30,8 +30,6 @@ In any case, let's find a way to help people move away from Bubble when and if t
 
 This is the view-only Bubble app I'm using to change and export: [https://bubble.io/page?name=index&id=test-bubble-export&tab=tabs-1](https://bubble.io/page?name=index&id=test-bubble-export&tab=tabs-1)
 
-This is the view-only ClickUP document I'm using to store Bubble JSON exports and a record of exactly what changes I've made, including screenshots of my changes in the Bubble editor: [https://doc.clickup.com/36848786/d/h/134h4j-2482/cb9e436a1b66127](https://doc.clickup.com/36848786/d/h/134h4j-2482/cb9e436a1b66127)
-
 This Bubble blog post from co-founder Joss Haas in 2018 explains how Bubble apps are stored as Abstract Syntax Trees (ASTs) and delivered to the user's browser using their JSONbase layer to avoid waiting for the huge JSON export file to load and be dealt with before showing the page: [https://bubble.io/blog/trees-in-the-clouds/amp/](https://bubble.io/blog/trees-in-the-clouds/amp/)
 
 There are three more articles explaining more about how this system works in the series of 4 total blog posts:

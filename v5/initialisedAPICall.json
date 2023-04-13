@@ -1,0 +1,21 @@
+{
+"apiconnector2": {
+    "bTGyn": {
+        "calls": {
+            "bTGyr": {
+                "name": "Test GET call",
+                "url": "https://jsonplaceholder.typicode.com/todos/1",
+                "rank": 0,
+                "types": "{\"bTGyn.bTGyr\":{\"caption\":\"API Call\",\"fields\":{\"_api_c2_userId\":{\"ret_value\":\"number\",\"caption\":\"userId\",\"sample_value\":1,\"path\":[\"userId\"]},\"_api_c2_id\":{\"ret_value\":\"text\",\"caption\":\"id\",\"sample_value\":1,\"path\":[\"id\"]},\"_api_c2_title\":{\"ret_value\":\"text\",\"caption\":\"title\",\"sample_value\":\"delectus aut autem\",\"path\":[\"title\"]},\"_api_c2_completed\":{\"ret_value\":\"boolean\",\"caption\":\"completed\",\"sample_value\":false,\"path\":[\"completed\"]}}}}",
+                "method": "get",
+                "ret_value": "api.apiconnector2.bTGyn.bTGyr",
+                "publish_as": "data",
+                "initialized": true,
+                "should_reinitialize": true,
+                "url_cant_be_private": true
+            }
+        },
+        "human": "Test API"
+    }
+}
+}
