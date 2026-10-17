@@ -32,6 +32,11 @@ cat out/v6/docs/IMPORT-REPORT.md
 mkdir -p in/backend && cp examples/backend-workflows/example-c5r6j-filled.json in/backend/
 node converter/bubble-run-bundle-to-export.mjs in/backend out/backend.export.json
 node converter/bubble2nodegx.mjs out/backend.export.json out/backend
+
+# 3. Option sets alone (three sets, one with an attribute of every type)
+mkdir -p in/options && cp examples/option-sets/example-dxr78ubfdtfq6tbmec.json in/options/
+node converter/bubble-run-bundle-to-export.mjs in/options out/options.export.json
+node converter/bubble2nodegx.mjs out/options.export.json out/options
 ```
 
 Then open the output folder in the NodeGX editor. The converter replaces the output folder each time it runs.
@@ -63,7 +68,12 @@ of the request ending in `/c5r6j` (it looks like
 `https://bubble.io/appeditor/load_single_path/<app>/<version>/<hash>/c5r6j`) into the same folder as any file whose
 name contains `c5r6j` and ends in `.json`.
 
-**3. Convert.**
+**3. The option sets (optional).** The page bundles carry them already, but the Bubble editor's copy is the one you
+are editing, with every attribute and its type. In the same Network tab, filter on `dxr78ubfdtfq6tbmec` and save the
+response of the request ending in `/dxr78ubfdtfq6tbmec` into the folder, as any file whose name contains
+`dxr78ubfdtfq6tbmec` and ends in `.json`. A set in it replaces the bundle's set with the same key.
+
+**4. Convert.**
 
 ```sh
 node converter/bubble-run-bundle-to-export.mjs in/myapp out/myapp.export.json
@@ -85,7 +95,8 @@ A NodeGX project folder:
 | styles, colour and font tokens | style variants in `nodegx.styles.json`, Bubble's own token names as design tokens |
 | front-end workflows and expressions | node chains; each expression a JavaScript Expression node |
 | data types | collections with their fields |
-| option sets, reusable elements, custom states, searches | components, Static Data, Variables, query nodes |
+| option sets | a component each, its options as Static Data rows with every attribute |
+| reusable elements, custom states, searches | components, Variables, query nodes |
 | backend workflows | cloud functions; database triggers and recurring events become backend triggers, proposed in `backend/triggers.bubble.json` |
 
 The full mapping, with what each one is in NodeGX, is in [docs/FINDINGS.md](docs/FINDINGS.md).

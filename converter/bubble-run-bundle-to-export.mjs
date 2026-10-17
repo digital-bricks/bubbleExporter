@@ -61,8 +61,12 @@ function jsString(body) {
 const LIT = /'((?:[^'\\]|\\[\s\S])*)'/.source;
 
 const files = fs.readdirSync(folder).filter((f) => f.endsWith('dynamic.js'));
-const hasBackend = fs.readdirSync(folder).some((f) => /c5r6j.*\.json$/i.test(f));
-if (!files.length && !hasBackend) { console.error(`no *.dynamic.js and no *c5r6j*.json in ${folder}`); process.exit(2); }
+// requests the Bubble editor makes (`/appeditor/load_single_path/<app>/<version>/<hash>/<path>`), each answering
+// `{ last_change, data }` for one part of the app, saved beside the dynamic.js files with the path in the name
+const EDITOR_PATHS = { c5r6j: 'api', dxr78ubfdtfq6tbmec: 'option_sets' };
+const editorFile = (f) => Object.keys(EDITOR_PATHS).find((p) => new RegExp(`${p}.*\\.json$`, 'i').test(f));
+const hasEditorFile = fs.readdirSync(folder).some(editorFile);
+if (!files.length && !hasEditorFile) { console.error(`no *.dynamic.js and no editor request (*c5r6j*.json, *dxr78ubfdtfq6tbmec*.json) in ${folder}`); process.exit(2); }
 let app = null; const pages = {}; const seen = new Set(); let pageFiles = 0;
 for (const f of files) {
   const t = fs.readFileSync(path.join(folder, f), 'utf8');
@@ -75,8 +79,8 @@ for (const f of files) {
   const idx = t.match(new RegExp(`app\\['_index'\\]\\['id_to_path'\\] = Object\\.assign\\([^,]+, JSON\\.parse\\(${LIT}\\)\\)`));
   if (idx) { app._index ??= {}; app._index.id_to_path = { ...(app._index.id_to_path || {}), ...JSON.parse(jsString(idx[1])) }; }
 }
-if (!app && !hasBackend) { console.error('no app found'); process.exit(1); }
-if (!app) { app = { _id: 'backend-only' }; console.log('no *.dynamic.js: converting the backend workflows alone'); } // a c5r6j file by itself: the backend workflows with no pages
+if (!app && !hasEditorFile) { console.error('no app found'); process.exit(1); }
+if (!app) { app = { _id: 'backend-only' }; console.log('no *.dynamic.js: converting the editor requests alone'); } // a c5r6j or option-set file by itself: no pages
 
 // plugin names from static.js, if present
 const plugins = {};
@@ -95,11 +99,17 @@ if (fs.existsSync(staticPath)) {
 // before and after Richard added five), only in the editor. In the Bubble editor, DevTools → Network, the request
 // ending `/c5r6j` (`/appeditor/load_single_path/<app>/<version>/<hash>/c5r6j`) answers `{ last_change, data }`
 // with every backend workflow, abbreviated like the bundles; saved beside the dynamic.js files as `*c5r6j*.json`.
-let backend = null; let backendFile = null;
-for (const f of fs.readdirSync(folder).filter((f) => /c5r6j.*\.json$/i.test(f))) {
+// Option sets: the bundles carry them too, but the editor's request ending `/dxr78ubfdtfq6tbmec` is the editor's own
+// copy (every set, its attributes with their types, every value's attribute values; `*dxr78ubfdtfq6tbmec*.json`),
+// so a set in it replaces the bundle's set of the same key.
+let backend = null; let backendFile = null; let editorOptionSets = null; let optionSetsFile = null;
+for (const f of fs.readdirSync(folder).filter(editorFile)) {
   const j = JSON.parse(fs.readFileSync(path.join(folder, f), 'utf8'));
-  if (j && typeof j.data === 'object') { backend = { ...(backend || {}), ...j.data }; backendFile = f; }
+  if (!j || typeof j.data !== 'object') continue;
+  if (EDITOR_PATHS[editorFile(f)] === 'api') { backend = { ...(backend || {}), ...j.data }; backendFile = f; }
+  else { editorOptionSets = { ...(editorOptionSets || {}), ...j.data }; optionSetsFile = f; }
 }
+if (editorOptionSets) app.option_sets = { ...(app.option_sets || {}), ...editorOptionSets };
 
 const pagesTable = app['%p3'] || {};
 const out = expand({
@@ -112,8 +122,8 @@ const out = expand({
 });
 out.pages_known = Object.fromEntries(Object.entries(pagesTable).map(([k, v]) => [k, v['%nm']]));
 out.plugins_installed = plugins;
-out.source = { kind: 'run-mode bundles', folder: path.basename(folder), pageFiles, backendWorkflows: backend ? { file: backendFile, count: Object.keys(backend).length } : null, pagesWithTree: Object.keys(pages).length, pagesInApp: Object.keys(pagesTable).length, unknownKeys: Object.fromEntries([...unknown].sort((a, b) => b[1] - a[1])) };
+out.source = { kind: 'run-mode bundles', folder: path.basename(folder), pageFiles, backendWorkflows: backend ? { file: backendFile, count: Object.keys(backend).length } : null, optionSets: editorOptionSets ? { file: optionSetsFile, count: Object.keys(editorOptionSets).length } : null, pagesWithTree: Object.keys(pages).length, pagesInApp: Object.keys(pagesTable).length, unknownKeys: Object.fromEntries([...unknown].sort((a, b) => b[1] - a[1])) };
 fs.writeFileSync(outPath, JSON.stringify(out));
 const missing = Object.entries(pagesTable).filter(([k]) => !pages[k]).map(([, v]) => v['%nm']);
-console.log(`${path.basename(outPath)}: ${(fs.statSync(outPath).size / 1e6).toFixed(1)} MB; pages with a tree ${Object.keys(pages).length}/${Object.keys(pagesTable).length}${missing.length ? ` (no bundle for: ${missing.join(', ')})` : ''}; reusables ${Object.keys(out.custom_elements).length}; data types ${Object.keys(out.user_types || {}).length}; option sets ${Object.keys(out.option_sets || {}).length}; styles ${Object.keys(out.styles || {}).length}; plugins named ${Object.keys(plugins).length}; backend workflows ${backend ? Object.keys(backend).length : 'none (no *c5r6j*.json in the folder)'}`);
+console.log(`${path.basename(outPath)}: ${(fs.statSync(outPath).size / 1e6).toFixed(1)} MB; pages with a tree ${Object.keys(pages).length}/${Object.keys(pagesTable).length}${missing.length ? ` (no bundle for: ${missing.join(', ')})` : ''}; reusables ${Object.keys(out.custom_elements).length}; data types ${Object.keys(out.user_types || {}).length}; option sets ${Object.keys(out.option_sets || {}).length}${editorOptionSets ? ` (${Object.keys(editorOptionSets).length} from ${optionSetsFile})` : ''}; styles ${Object.keys(out.styles || {}).length}; plugins named ${Object.keys(plugins).length}; backend workflows ${backend ? Object.keys(backend).length : 'none (no *c5r6j*.json in the folder)'}`);
 if (unknown.size) console.log('abbreviated keys kept as-is:', [...unknown].map(([k, n]) => `${k}×${n}`).join(' '));
