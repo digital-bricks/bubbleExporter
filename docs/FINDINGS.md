@@ -15,7 +15,7 @@ describe. Every element, style, workflow, action and expression is a node with a
 | **A page's run-mode bundle**: `/package/dynamic_js/…/<page>/dynamic.js` | `const app = JSON.parse('…')` with settings, data types, option sets, styles and the reusable elements, then `app['%p3']['<page>'] = …` with that page's whole element tree and workflows | anyone who can open the page. One file per page gives the whole front end. |
 | **The Bubble editor's `c5r6j` request**: `https://bubble.io/appeditor/load_single_path/<app>/<version>/<hash>/c5r6j` | `{ last_change, data }`: every backend workflow | whoever can open the app in the Bubble editor |
 | **The Bubble editor's `dxr78ubfdtfq6tbmec` request** (the same URL ending in `/dxr78ubfdtfq6tbmec`) | `{ last_change, data }`: every option set, its attributes with their types, and each option's attribute values | whoever can open the app in the Bubble editor |
-| **The Bubble editor's `entpawjzehwq0tbk` request** | `{ last_change, data }`: every data type and field, deleted ones included. The bundles carry the same types, fields and defaults, so this one is optional | whoever can open the app in the Bubble editor |
+| **The Bubble editor's `entpawjzehwq0tbk` request** | `{ last_change, data }`: every data type and field, deleted ones included, and each type's privacy rules. The bundles carry the same types, fields, defaults and privacy rules, so this one is optional | whoever can open the app in the Bubble editor |
 
 The bundles and the editor's answers use abbreviated keys (`%p` properties, `%x` type, `%el` elements, `%wf`
 workflows, `%ed` reusables, `%p3` pages, `%n` next, `%a` args, `%e` entries …). It is the same tree as the paid
@@ -114,10 +114,25 @@ Every result below was validated by NodeGX's own project validator.
 
 Each of these is a known shape: a table row still to write, a NodeGX node still to build, or a decision for a person.
 
-- **Plugins.** Plugin elements and actions have no NodeGX counterpart. Their code is in `static.js`; each one is a
-  port to write by hand, or with an AI, against the plugin's source.
-- **Privacy rules** are reported, not converted. They use the same expression language, so they will become a table
-  row into NodeGX's `nodegx.security.json`.
+- **Plugins** are the biggest problem left. There are thousands, many used by a handful of apps, so a table row per
+  plugin will not scale. In one production app's `static.js`, all 48 client-side plugin actions ship their code, and
+  none of the 80 server-side actions do: only their fields and return values are there, because their code runs on
+  Bubble's servers. Client-side plugin code is written against Bubble's plugin API (`instance.data`,
+  `instance.publishState`, `instance.triggerEvent`, `instance.canvas`, `initialize` and `update`), so one NodeGX
+  node that provides that API could run many plugins without a port each. A server-side action has to be rewritten,
+  for example as a cloud function, from its fields. Running a plugin's code outside Bubble is also a licence question
+  for each plugin, since many are paid and licensed per app.
+- **Privacy rules** are reported, not converted yet. Each type's rules are in the bundles and in the editor's
+  `entpawjzehwq0tbk` request: a condition in the same expression language (none for `everyone`), and the
+  permissions *view all fields* (or a list of fields), *find this in searches*, *view attached files*, *allow
+  auto-binding* (with its fields) and the Data API's create, modify and delete. Most of it maps onto NodeGX's
+  `nodegx.security.json`: *Current User is logged in* is `authenticated`, *This thing's Creator is Current User* is
+  `creatorOwns`, a field pointing at the current user is a path rule, *find this in searches* is `find`, and a list
+  of fields is per-field read rules. The open question is writes. As we understand Bubble (not yet tested), privacy
+  rules guard reads, auto-binding and the Data API, while a page workflow that changes a thing runs on Bubble's
+  server, checked by its own *Only when*. A converted page writes from the browser, through each collection's
+  create, update and delete rules, so those rules have to come from the workflows that write each type. Otherwise a
+  check Bubble made on its server becomes one in the browser that anyone can skip.
 - **"Thing before change"** in a database trigger has no NodeGX counterpart: a NodeGX db-change trigger hands its
   function the record after the write only. It is read as empty, with a finding. Most database triggers compare
   before and after, so this matters.

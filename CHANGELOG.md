@@ -33,6 +33,10 @@
 - The 2023 study moved to `archive/2023-study/`, with a README of its own. Its `v6` export is now
   `examples/paid-export/test-app-v6.json`.
 - The README is rewritten around using the converter.
+- `examples/editor-requests/data-types-entpawjzehwq0tbk.json` is a newer capture of the same request, with a privacy
+  rule on every type, so the import report now lists the rules of all three types.
+- `docs/FINDINGS.md` describes where privacy rules live and how they map onto NodeGX, and what a production app's
+  `static.js` holds for its plugins.
 
 ### Fixed
 
