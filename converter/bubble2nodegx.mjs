@@ -12,7 +12,7 @@ import path from 'node:path';
 
 const [,, srcPath, outDir] = process.argv;
 if (!srcPath || !outDir) { console.error('usage: bubble2nodegx.mjs <export.json> <outdir>'); process.exit(2); }
-const app = JSON.parse(fs.readFileSync(srcPath, 'utf8'));
+const srcText = fs.readFileSync(srcPath, 'utf8'); const app = JSON.parse(srcText);
 
 // ---------------------------------------------------------------- bookkeeping
 const findings = []; // { level: 'ok'|'todo'|'ai', where, what }
@@ -81,7 +81,7 @@ const dbCollections = liveEntries(userTypes).filter(([, t]) => t.fields || t.dis
   columns: liveEntries(t.fields).filter(([fk, f]) => !/^(unique[ _]?id|_id|bubble[ _]?id)$/i.test(f.display || fk)).map(([fk, f]) => ({ name: f.display || fieldDisplay(k, fk), ...bubbleColumn(f.value), ...(f.default_val !== undefined ? { defaultValue: optionAttrValue(f.value, f.default_val) } : {}) })),
   createdAt: null,
 }));
-for (const [k, t] of Object.entries(userTypes)) if (t.privacy_role) ai(`data type ${t.display || k}`, `privacy rules (${Object.keys(t.privacy_role).join(', ')}) are not converted; nodegx.security.json needs a human or an AI pass`);
+// privacy rules → nodegx.security.json: buildSecurity(), after every workflow has been read (s6)
 
 const cs = app.settings?.client_safe || {};
 const customTokens = [];
@@ -210,7 +210,7 @@ for (const [, pg] of Object.entries(app.pages || {})) markInflow(pg.elements); f
 function convertPage(bubblePage) {
   const g = new Graph(pageComponentPath(bubblePage), 'page', `Converted from Bubble page "${bubblePage.name}" (${bubblePage.id})`);
   components.push(g);
-  const pp = bubblePage.properties || {};
+  const pp = bubblePage.properties || {}; g.pageType = pp.page_type || null;
   const pageLayout = pp.new_responsive ? (!pp.container_layout || pp.container_layout === 'fixed' ? 'fixed' : 'flex') : 'old';
   const pageNode = g.add({ id: `page_${bubblePage.id}`, type: 'Page', label: bubblePage.name, parameters: { title: textLiteral(pp.title) || bubblePage.name, urlPath: bubblePage.name === 'index' ? '' : bubblePage.name }, children: [], x: 40, y: 40 });
   const root = g.add({ id: `root_${bubblePage.id}`, type: 'Group', label: `Page ${bubblePage.name}`, parent: pageNode.id, parameters: { ...layoutParams({ ...pp, horiz_alignment: 'stretch', width: undefined, height: undefined, single_width: false, single_height: false }, 'flex', 'Page'), width: pct(100), ...(pp.backdrop_background_style === 'bgcolor' && pp.backdrop_bgcolor ? { backgroundColor: pp.backdrop_bgcolor } : {}) }, children: [], x: 100, y: 160 });
@@ -242,13 +242,14 @@ const graphByPath = {}; // component path → Graph
 const rowPaths = {}; // repeating group id → its row component path, unique
 const rowPathFor = (pageName, label, id) => { if (rowPaths[id]) return rowPaths[id]; let p = `/Rows/${safeName(pageName)} ${safeName(label)}`; if (Object.values(rowPaths).includes(p)) p += ` ${id}`; rowPaths[id] = p; return p; };
 const groupDataNode = {}; // a Group's node id → the Expression node id holding its data source
-function preIndex(elements, componentPath, pageName) {
+function preIndex(elements, componentPath, pageName, parentType) { // parentType: the nearest typed ancestor's type — what "Parent group's item" is for an element here
   for (const [, el] of Object.entries(elements || {})) {
     if (!el || typeof el !== 'object' || !el.type || !el.id) continue;
     const ntype = typeMap[el.type] || (el.type === 'CustomElement' ? reusablePath(el.properties?.custom_id) : null) || 'Group';
-    elementIndex[el.id] = { nodeId: `el_${el.id}`, type: ntype, bubbleType: el.type, componentPath, label: el.name || el.default_name || el.type, page: pageName };
-    if (el.type === 'RepeatingGroup') preIndex(el.elements, rowPathFor(pageName, el.name || el.default_name || el.type, el.id), pageName);
-    else preIndex(el.elements, componentPath, pageName);
+    elementIndex[el.id] = { nodeId: `el_${el.id}`, type: ntype, bubbleType: el.type, componentPath, label: el.name || el.default_name || el.type, page: pageName, groupType: el.properties?.group_type, dataSource: el.properties?.data_source, parentType };
+    const inner = el.properties?.group_type || parentType;
+    if (el.type === 'RepeatingGroup') preIndex(el.elements, rowPathFor(pageName, el.name || el.default_name || el.type, el.id), pageName, inner);
+    else preIndex(el.elements, componentPath, pageName, inner);
   }
 }
 const reusableKeyById = {}; for (const [k, d] of Object.entries(customElements)) if (d && d.id) reusableKeyById[d.id] = k;
@@ -458,7 +459,7 @@ function compileExpr(g, node, ctx) {
 function describe(n) { // a human line for the label
   if (!n || typeof n !== 'object') return JSON.stringify(n);
   const parts = []; let cur = n;
-  const rootName = { GetElement: `Element ${elementIndex[n.properties?.element_id]?.label || n.properties?.element_id}`, CurrentUser: 'Current User', ThisElement: 'This element', GetParamFromUrl: `URL param ${textLiteral(n.properties?.parameter_name)}`, PageData: n.properties?.name, GetDataFromAPI: `API ${n.properties?.provider}`, ElementParent: "Parent group's item", ArbitraryText: JSON.stringify(textLiteral(n.properties?.text ?? n.properties?.arbitrary_text) ?? '…'), APIEventParameter: `parameter ${n.properties?.param_name}`, CurrentWorkflowItem: n.properties?.param_name ? `parameter ${n.properties.param_name}` : 'CurrentWorkflowItem', CurrentDataItem: 'This thing (now)', OldDataItem: 'This thing (before the change)', TextExpression: Object.values(n.entries || {}).map((e) => typeof e === 'string' ? JSON.stringify(e) : describe(e)).join(' ') }[n.type] || n.type;
+  const rootName = { GetElement: `Element ${elementIndex[n.properties?.element_id]?.label || n.properties?.element_id}`, CurrentUser: 'Current User', ThisElement: 'This element', GetParamFromUrl: `URL param ${textLiteral(n.properties?.parameter_name)}`, PageData: n.properties?.name, GetDataFromAPI: `API ${n.properties?.provider}`, ElementParent: "Parent group's item", ArbitraryText: JSON.stringify(textLiteral(n.properties?.text ?? n.properties?.arbitrary_text) ?? '…'), APIEventParameter: `parameter ${n.properties?.param_name}`, CurrentWorkflowItem: n.properties?.param_name ? `parameter ${n.properties.param_name}` : 'CurrentWorkflowItem', CurrentDataItem: 'This thing (now)', OldDataItem: 'This thing (before the change)', InjectedValue: 'This thing', TextExpression: Object.values(n.entries || {}).map((e) => typeof e === 'string' ? JSON.stringify(e) : describe(e)).join(' ') }[n.type] || n.type;
   parts.push(rootName); cur = n.next;
   while (cur && cur.type === 'Message') { parts.push(`'s ${cur.name}${cur.args !== undefined ? ' ' + (typeof cur.args === 'object' ? describe(cur.args) : JSON.stringify(cur.args)) : ''}`); cur = cur.next; }
   return parts.join('');
@@ -470,9 +471,110 @@ const eventPortOk = (type, port) => type.startsWith('/') ? false : (EVENT_PORTS[
 const EVENTS = { ButtonClicked: ['onClick'], InputChanged: ['onTextChanged'], ElementClicked: ['onClick'], PageLoaded: ['didMount'], PageIsLoaded: ['didMount'], InputValueChanged: ['onTextChanged'], InputChanged: ['onTextChanged'], ValueChanged: ['onChange'], ElementHovered: ['hoverStart'], UserIsLoggedIn: ['didMount'] };
 const customEventIds = {}; // workflow id → event name, for TriggerCustomEvent
 let wfElement = null, wfReceiver = null; // the element (node) a workflow hangs on, and its Event Receiver, while its actions convert
-let cloud = null; // s5, while a backend workflow converts: { kind: 'api'|'trigger'|'recurring'|'custom', req (its Request or Component Inputs node), thingPort, outs }
+let cloud = null; // s5, while a backend workflow converts: { kind: 'api'|'trigger'|'recurring'|'custom', req (its Request or Component Inputs node), thingPort, outs, name }
+
+// ---------------------------------------------------------------- s6: who may read (privacy rules) and who may write (the app's own writes) → nodegx.security.json
+// Bubble's privacy rules say who READS a type (and who may auto-bind, and who may use the Data API). A page workflow's
+// writes ran on Bubble's server behind the workflow's own "Only when", which privacy rules never see. A converted Record
+// node writes from the browser behind the collection's create/update/delete rule, so those rules are derived from every
+// write the converter read (noteWrite): the widest condition a page write of that type ran under is the floor, and the
+// report lists each write so a person tightens it. A backend workflow's writes keep Bubble's shape — on the server,
+// behind the function's own condition — by running the function as "system".
+let wfCondition = null; // the "Only when" of the workflow whose steps are converting
+let wfThingType = null, wfParams = {}, wfElementRef = null; // the type a workflow's "thing" is (a page custom event's, a trigger's, a recurring event's), and its parameters' types by name
+const keyOfColl = (name) => Object.keys(userTypes).find((k) => collName(typeDisplay(k)) === name) || (name === '_User' ? 'user' : null);
+const stripList = (t) => typeof t === 'string' && t.startsWith('list.') ? t.slice(5) : t;
+const ITEM_OPS = new Set(['first_element', 'first_item', 'last_element', 'last_item', 'item_from', 'specific_item', 'random_item']);
+// P123-S6-THINGTYPE: the Bubble type ('custom.x' | 'user') a thing expression evaluates to, or null — "Parent group's
+// item" is the row's type, "Result of step 2" the record that step wrote, an element's thing its group_type (or its
+// data source's type), the workflow's thing the event's type, a field read the field's type (the schema, else the type the
+// field key spells: booking_custom_booking, renter_user). A list is not one thing.
+function thingTypeOf(e, g) {
+  if (!e || typeof e !== 'object') return null;
+  let t = null; const pr = e.properties || {};
+  switch (e.type) {
+    case 'CurrentUser': t = 'user'; break;
+    case 'ElementParent': case 'CurrentCellsIndex': t = wfElementRef?.parentType || g?.itemType || null; break;
+    case 'CurrentPageItem': t = g?.pageType || null; break;
+    case 'CurrentWorkflowItem': t = pr.param_name ? (wfParams[pr.param_name] || null) : wfThingType; break;
+    case 'CurrentDataItem': case 'OldDataItem': t = wfThingType; break;
+    case 'APIEventParameter': t = wfParams[pr.param_name] || wfParams[pr.param_id] || wfParams[pname(pr.param_name || pr.param_id)] || null; break;
+    case 'GetElement': { const ref = elementIndex[pr.element_id]; t = ref?.groupType || (ref?.dataSource ? thingTypeOf(ref.dataSource, g) : null); break; }
+    case 'Search': case 'DoASearch': case 'SearchFor': { const st = pr.thing_type || pr.type; t = st ? 'list.' + String(st).replace(/^list\./, '') : null; break; }
+    case 'PreviousStep': { const an = g?.nodes.find((x) => x.id === `act_${pr.action_id}`); t = an?.parameters?.collectionName ? keyOfColl(an.parameters.collectionName) : null; break; }
+    default: return null;
+  }
+  for (let m = e.next; m && t; m = m.next) {
+    if (m.type !== 'Message') return null;
+    if (m.name === 'get_group_data' || m.name === 'get_list_data' || m.name === 'get_data') continue;
+    if (ITEM_OPS.has(m.name)) { t = stripList(t); continue; }
+    const f = userTypes[String(stripList(t)).replace(/^custom\./, '')]?.fields?.[m.name];
+    if (f && typeof f.value === 'string' && /^(list\.)?(custom\.|user$)/.test(f.value)) { t = f.value; continue; }
+    const suf = /_(list_)?(custom_[a-z0-9_]+|user)$/.exec(m.name);
+    if (suf) { const base = suf[2] === 'user' ? 'user' : suf[2].replace(/^custom_/, 'custom.'); t = suf[1] ? 'list.' + base : base; continue; }
+    return null;
+  }
+  return t && !String(t).startsWith('list.') ? t : null;
+}
+let sawSignup = false;
+const writes = []; // { coll, op, where, kind: 'page'|'cloud', fn, shared, cond, cls }
+const chainOf = (c) => { const out = []; let m = c?.next; while (m) { out.push(m); m = m.next; } return out; };
+const rechain = (msgs) => msgs.reduceRight((acc, m) => ({ ...m, next: acc }), undefined);
+const isCurrentUser = (a) => !!a && typeof a === 'object' && a.type === 'CurrentUser' && !a.next;
+const EQ = new Set(['equals', 'is', 'is_equal']);
+const rankOf = (atom) => atom === null ? -1 : atom === 'public' ? 0 : atom === 'authenticated' ? 1 : 2; // 2: the creator, the own row, a path — narrower than signed-in
+const ruleText = (atom) => atom === null ? '—' : typeof atom === 'string' ? atom : `path: ${atom.path.hops.map((h) => h.follow ? `follow ${h.follow}` : `${h.from} by ${h.by}`).join(' → ')}`;
+const mentionsUser = (raw) => !!raw && JSON.stringify(raw).includes('"CurrentUser"');
+// A Bubble condition → the NodeGX rule atom it needs: 'public' | 'authenticated' | 'creatorOwns' | 'self' (the user's own row) |
+// { path } (P116 ONT-004: the rows the caller reaches from their own _User row) | null (no rule says it). `and_` takes the
+// stricter side, `or_` the wider; a side with no rule is said in `note`. `typeKey` is the type "This thing" is.
+function classifyCondition(c, typeKey) {
+  if (!c || typeof c !== 'object') return { atom: 'public', text: 'no condition' };
+  const text = describe(c); const msgs = chainOf(c);
+  const i = msgs.findIndex((m) => m.name === 'and_' || m.name === 'or_');
+  if (i >= 0) {
+    const L = classifyCondition({ ...c, next: rechain(msgs.slice(0, i)) }, typeKey); const R = classifyCondition(msgs[i].args, typeKey);
+    if (msgs[i].name === 'and_') { // both must hold: the stricter side is the rule; a side no rule says is dropped (wider than Bubble) and said
+      const picked = [L, R].filter((x) => x.atom !== null).sort((a, b) => rankOf(b.atom) - rankOf(a.atom))[0];
+      return picked ? { atom: picked.atom, text, note: L.atom === null || R.atom === null ? `only "${picked.text}" of it is a rule; the rest is checked on the page only` : picked.note } : { atom: null, text };
+    }
+    if (L.atom === null || R.atom === null) return { atom: null, text };
+    const wider = rankOf(L.atom) <= rankOf(R.atom) ? L : R; return { atom: wider.atom, text, note: `either side admits a caller: the wider, "${wider.text}", is the rule` };
+  }
+  const m0 = msgs[0]; const nm = (m) => m?.name;
+  if (c.type === 'CurrentUser') {
+    if (!m0) return { atom: null, text };
+    if (nm(m0) === 'logged_in' && !m0.next) return { atom: 'authenticated', text };
+    if ((nm(m0) === 'logged_out' || nm(m0) === 'not_logged_in') && !m0.next) return { atom: 'public', text, note: 'admits strangers only in Bubble; NodeGX has no "strangers only" rule, so it is public' };
+    return { atom: 'authenticated', text, note: `narrower than signed-in in Bubble: a role (role:<name>) if "${fieldDisplay('user', nm(m0))}" names one, else the page checks it` }; // a stranger has no fields
+  }
+  if (c.type === 'InjectedValue') { // "This <type>" in a privacy rule
+    if (!m0) return { atom: null, text };
+    if (EQ.has(nm(m0)) && isCurrentUser(m0.args) && !m0.next) return { atom: typeKey === 'user' ? 'self' : null, text };
+    const field = nm(m0); const cmp = m0.next; const f = userTypes[typeKey]?.fields?.[field]; const col = f?.display || fieldDisplay(typeKey, field);
+    if (cmp && EQ.has(nm(cmp)) && !cmp.next && isCurrentUser(cmp.args)) {
+      if (/^(Created By|created_by|creator)$/i.test(field)) return { atom: 'creatorOwns', text };
+      if (f?.value === 'user') return { atom: { path: { hops: [{ from: collName(typeDisplay(typeKey)), by: col }], maxDepth: 1 } }, text };
+    }
+    if (cmp && nm(cmp) === 'contains' && !cmp.next && isCurrentUser(cmp.args) && String(f?.value || '').startsWith('list.')) return { atom: null, text, note: 'a list of users read back to the caller is a hop the backend refuses (a list field cannot be read that way round)' };
+    if (cmp && EQ.has(nm(cmp)) && !cmp.next && cmp.args?.type === 'CurrentUser' && cmp.args.next && !cmp.args.next.next) { // This thing's X is Current User's X: through the user's own link, then back
+      const uk = cmp.args.next.name; const uf = userTypes.user?.fields?.[uk];
+      if (f && uf && f.value === uf.value && (uf.value === 'user' || String(uf.value).startsWith('custom.'))) return { atom: { path: { hops: [{ follow: uf.display || fieldDisplay('user', uk), to: collName(typeDisplay(uf.value)) }, { from: collName(typeDisplay(typeKey)), by: col }], maxDepth: 2 } }, text };
+    }
+    return { atom: null, text };
+  }
+  return { atom: null, text };
+}
+// a step that creates, changes or deletes a <collDisplay>: remembered with the conditions it ran under (the workflow's and its own)
+function noteWrite(g, op, collDisplay, bubblePage, evLabel, action, expr) {
+  const coll = collName(collDisplay); const tk = Object.keys(userTypes).find((k) => typeDisplay(k) === collDisplay) || collDisplay; const own = action.properties?.condition;
+  const floor = (x, raw) => x.atom !== null ? x : { atom: mentionsUser(raw) ? 'authenticated' : 'public', text: x.text, note: mentionsUser(raw) ? 'no rule says it; it reads the current user, so signed-in is the floor' : 'no rule says it; anyone the page lets through can do it' };
+  const w = floor(classifyCondition(wfCondition, tk), wfCondition), s = floor(classifyCondition(own, tk), own);
+  const cls = rankOf(w.atom) >= rankOf(s.atom) ? w : s; // both held before the step ran: the stricter is the floor
+  writes.push({ coll, op, otherUser: coll === '_User' && !!expr && expr.type !== 'CurrentUser', where: `${bubblePage.name} / ${evLabel}`, kind: g.kind === 'cloud' ? 'cloud' : 'page', fn: g.kind === 'cloud' ? cloud?.name : undefined, shared: cloud?.kind === 'custom', cond: [wfCondition && w.text, own && s.text].filter(Boolean).join(' AND ') || 'no condition', cls });
+}
 function convertWorkflow(g, wf, bubblePage) {
-  stats.workflows++; wfElement = null; wfReceiver = null; const wfRef = wf.properties?.element_id ? elementIndex[wf.properties.element_id] : null; if (wfRef) wfElement = { id: wfRef.nodeId, type: wfRef.type };
+  stats.workflows++; wfElement = null; wfReceiver = null; wfCondition = wf.properties?.condition || wf.condition || null; wfThingType = wf.properties?.custom_event_data_type || null; wfParams = Object.fromEntries(Object.values(wf.properties?.parameters || {}).filter((q) => q && (q.param_name || q.key)).map((q) => [q.param_name || q.key, q.btype_id || q.value])); const wfRef = wf.properties?.element_id ? elementIndex[wf.properties.element_id] : null; if (wfRef) wfElement = { id: wfRef.nodeId, type: wfRef.type }; wfElementRef = wfRef;
   const evPorts = EVENTS[wf.type];
   let fromId, fromPort, evLabel;
   if (evPorts) {
@@ -487,7 +589,7 @@ function convertWorkflow(g, wf, bubblePage) {
   else if (/^(\d{13}x\d+)-/.test(wf.type) || /^[a-z0-9]+-\w+$/i.test(wf.type)) { const nm = pluginName(wf.type) || wf.type; ai(`${bubblePage.name} workflow ${wf.id}`, `plugin event ${nm}: its actions are converted but nothing fires them`); evLabel = nm; }
   else { ai(`${bubblePage.name} workflow ${wf.id}`, `event type ${wf.type} not in the event dictionary; its ${Object.keys(wf.actions || {}).length} actions were still converted but nothing triggers them`); evLabel = wf.type; }
   if (wf.properties?.condition || wf.condition) { const c = compileExpr(g, wf.properties?.condition || wf.condition, { page: bubblePage }); const cond = g.add({ id: fresh('wfc'), type: 'Condition', label: `Only when ${c.text}`, parameters: {} }); const ex = exprNode(g, `Only when ${c.text}`, c.js, c); g.wire(ex.id, 'result', cond.id, 'condition'); if (fromId) g.wire(fromId, fromPort, cond.id, 'eval'); fromId = cond.id; fromPort = 'ontrue'; }
-  chainActions(g, wf, fromId, fromPort, bubblePage, evLabel);
+  chainActions(g, wf, fromId, fromPort, bubblePage, evLabel); wfCondition = null; wfThingType = null; wfParams = {}; wfElementRef = null;
 }
 // a workflow's steps in order, each fired by the one before; returns where the chain ends ({ fromId, fromPort, ended })
 const CAN_FAIL = new Set(['NewDbModelProperties', 'SetDbModelProperties', 'DeleteDbModelProperties', 'noodl.cloud.createuser', 'noodl.cloud.updateuser', 'noodl.cloud.sendemail', 'Expression']);
@@ -523,17 +625,17 @@ function convertAction(g, action, bubblePage, evLabel) {
   const p = action.properties || {}; const id = `act_${action.id}`;
   if (g.kind === 'cloud') { const made = convertCloudAction(g, action, p, id, bubblePage, evLabel); if (made) return made; }
   switch (action.type) {
-    case 'NewThing': { stats.actionsMapped++; const coll = typeDisplay(p.thing_type); const n = g.add({ id, type: 'NewDbModelProperties', label: `Create a new ${coll}`, parameters: { collectionName: collName(coll) } }); for (const iv of Object.values(p.initial_values || {})) { if (!iv || !iv.key) continue; const field = fieldDisplay(p.thing_type, iv.key); wireValue(g, iv.value, n.id, `prop-${field}`, bubblePage, `${coll}.${field}`); } return { node: n, trigger: 'store', done: 'done' }; }
-    case 'MakeChanges': case 'MakeChangesToThing': { stats.actionsMapped++; const coll = typeDisplay(p.thing_type || p.thing?.next?.type || 'thing'); const n = g.add({ id, type: 'SetDbModelProperties', label: `Make changes to a ${coll}`, parameters: { collectionName: collName(coll), idSource: 'explicit' } }); if (p.thing_to_change || p.thing) { const c = compileExpr(g, p.thing_to_change || p.thing, { page: bubblePage }); const ex = exprNode(g, `which ${coll}: ${c.text}`, `${c.js}?.id ?? ${c.js}`, c); g.wire(ex.id, 'result', n.id, 'modelId'); } for (const ch of Object.values(p.changes || p.initial_values || {})) { if (!ch || !ch.key) continue; const field = fieldDisplay(p.thing_type, ch.key); wireValue(g, ch.value, n.id, `prop-${field}`, bubblePage, `${coll}.${field}`); } return { node: n, trigger: 'store', done: 'done' }; }
-    case 'DeleteThing': case 'DeleteListOfThings': { stats.actionsMapped++; const n = g.add({ id, type: 'DeleteDbModelProperties', label: 'Delete a record', parameters: { idSource: 'explicit' } }); if (p.thing_to_delete || p.thing || p.to_delete) { const c = compileExpr(g, p.thing_to_delete || p.thing || p.to_delete, { page: bubblePage }); const ex = exprNode(g, `which record: ${c.text}`, `${c.js}?.id ?? ${c.js}`, c); g.wire(ex.id, 'result', n.id, 'modelId'); } return { node: n, trigger: 'store', done: 'done' }; }
+    case 'NewThing': { stats.actionsMapped++; const coll = typeDisplay(p.thing_type); noteWrite(g, 'create', coll, bubblePage, evLabel, action); const n = g.add({ id, type: 'NewDbModelProperties', label: `Create a new ${coll}`, parameters: { collectionName: collName(coll) } }); for (const iv of Object.values(p.initial_values || {})) { if (!iv || !iv.key) continue; const field = fieldDisplay(p.thing_type, iv.key); wireValue(g, iv.value, n.id, `prop-${field}`, bubblePage, `${coll}.${field}`); } return { node: n, trigger: 'store', done: 'done' }; }
+    case 'MakeChanges': case 'MakeChangesToThing': { stats.actionsMapped++; const coll = typeDisplay(p.thing_type || thingTypeOf(p.thing_to_change || p.thing, g) || 'thing'); noteWrite(g, 'update', coll, bubblePage, evLabel, action, p.thing_to_change || p.thing); const n = g.add({ id, type: 'SetDbModelProperties', label: `Make changes to a ${coll}`, parameters: { collectionName: collName(coll), idSource: 'explicit' } }); if (p.thing_to_change || p.thing) { const c = compileExpr(g, p.thing_to_change || p.thing, { page: bubblePage }); const ex = exprNode(g, `which ${coll}: ${c.text}`, `${c.js}?.id ?? ${c.js}`, c); g.wire(ex.id, 'result', n.id, 'modelId'); } for (const ch of Object.values(p.changes || p.initial_values || {})) { if (!ch || !ch.key) continue; const field = fieldDisplay(p.thing_type, ch.key); wireValue(g, ch.value, n.id, `prop-${field}`, bubblePage, `${coll}.${field}`); } return { node: n, trigger: 'store', done: 'done' }; }
+    case 'DeleteThing': case 'DeleteListOfThings': { stats.actionsMapped++; noteWrite(g, 'delete', typeDisplay(p.thing_type || p.type_to_delete || thingTypeOf(p.thing_to_delete || p.thing || p.to_delete, g) || 'thing'), bubblePage, evLabel, action, p.thing_to_delete || p.thing || p.to_delete); const n = g.add({ id, type: 'DeleteDbModelProperties', label: 'Delete a record', parameters: { idSource: 'explicit' } }); if (p.thing_to_delete || p.thing || p.to_delete) { const c = compileExpr(g, p.thing_to_delete || p.thing || p.to_delete, { page: bubblePage }); const ex = exprNode(g, `which record: ${c.text}`, `${c.js}?.id ?? ${c.js}`, c); g.wire(ex.id, 'result', n.id, 'modelId'); } return { node: n, trigger: 'store', done: 'done' }; }
     case 'ChangePage': { stats.actionsMapped++; const target = pageById[p.element_id] || Object.values(pageById).find((pg) => pg.id === p.element_id); const n = g.add({ id, type: 'RouterNavigate', label: `Go to page ${target?.name || p.element_id}`, parameters: { target: target ? pageComponentPath(target) : '/Pages/?' } }); if (!target) todo(bubblePage.name, `Go to page: page ${p.element_id} not in the export`); if (p.parameters) todo(bubblePage.name, `Go to page ${target?.name}: "data to send"/parameters not wired`); return { node: n, trigger: 'navigate', done: 'done' }; }
     case 'ResetPassword': { stats.actionsMapped++; const n = g.add({ id, type: 'net.noodl.user.ResetPassword', label: 'Reset the password', parameters: {} }); wireValue(g, p.new_password, n.id, 'newPassword', bubblePage, 'new password'); const pi = g.singleton('pageInputs', () => ({ id: fresh('pin'), type: 'PageInputs', label: 'URL parameters', parameters: { queryParams: '' } })); const list = pi.parameters.queryParams ? pi.parameters.queryParams.split(',') : []; if (!list.includes('token')) list.push('token'); pi.parameters.queryParams = list.join(','); g.wire(pi.id, 'pm-token', n.id, 'token'); if (p.new_password_again) todo(bubblePage.name, 'Reset password: the "confirm password" check is Bubble-side; add a Condition comparing the two inputs before the reset'); return { node: n, trigger: 'reset', done: 'success' }; }
     case 'LogIn': case 'LoginUser': { stats.actionsMapped++; const n = g.add({ id, type: 'net.noodl.user.LogIn', label: 'Log the user in', parameters: {} }); wireValue(g, p.email, n.id, 'username', bubblePage, 'email'); wireValue(g, p.password, n.id, 'password', bubblePage, 'password'); return { node: n, trigger: 'login', done: 'done' }; }
-    case 'SignUp': case 'SignUpUser': { stats.actionsMapped++; const n = g.add({ id, type: 'net.noodl.user.SignUp', label: 'Sign the user up', parameters: {} }); wireValue(g, p.email, n.id, 'email', bubblePage, 'email'); wireValue(g, p.email, n.id, 'username', bubblePage, 'email'); wireValue(g, p.password, n.id, 'password', bubblePage, 'password'); return { node: n, trigger: 'signup', done: 'done' }; }
+    case 'SignUp': case 'SignUpUser': { stats.actionsMapped++; sawSignup = true; const n = g.add({ id, type: 'net.noodl.user.SignUp', label: 'Sign the user up', parameters: {} }); wireValue(g, p.email, n.id, 'email', bubblePage, 'email'); wireValue(g, p.email, n.id, 'username', bubblePage, 'email'); wireValue(g, p.password, n.id, 'password', bubblePage, 'password'); return { node: n, trigger: 'signup', done: 'done' }; }
     case 'LogOut': case 'LogoutUser': { stats.actionsMapped++; const n = g.add({ id, type: 'net.noodl.user.LogOut', label: 'Log the user out', parameters: {} }); return { node: n, trigger: 'login', done: 'done' }; }
     case 'SetCustomState': case 'SetState': { stats.actionsMapped++; const ref = elementIndex[p.element_id]; const stKey = String(p.custom_state || p.state || 'state').replace(/^custom\./, '').replace(/_$/, ''); const name = `${ref?.label || p.element_id}.${stKey}`.replace(/\W+/g, '_'); const n = g.add({ id, type: 'Set Variable', label: `Set state ${name}`, parameters: { name, setWith: '*' } }); wireValue(g, p.value, n.id, 'value', bubblePage, name); return { node: n, trigger: 'do', done: 'done' }; }
     case 'TriggerCustomEvent': case 'ScheduleCustom': { stats.actionsMapped++; const nm = customEventIds[p.custom_event] || p.name || p.event || p.custom_event || 'custom'; const n = g.add({ id, type: 'Event Sender', label: `Trigger ${nm}`, parameters: { channelName: nm, propagation: 'global' } }); if (action.type === 'ScheduleCustom') todo(bubblePage.name, `Schedule custom event ${nm} after ${p.delay}s: sent at once (a Timer is the NodeGX way)`); return { node: n, trigger: 'sendEvent', done: 'done' }; }
-    case 'ChangeThing': case 'MakeChangeCurrentUser': { stats.actionsMapped++; const isUser = action.type === 'MakeChangeCurrentUser' || p.thing_to_change?.type === 'CurrentUser'; const coll = isUser ? 'User' : typeDisplay(p.thing_to_change?.properties?.thing_type || p.thing_to_change?.next?.type || p.thing_type || 'thing'); const n = g.add({ id, type: 'SetDbModelProperties', label: `Make changes to ${isUser ? 'the current user' : 'a ' + coll}`, parameters: { collectionName: collName(coll), idSource: 'explicit' } }); if (isUser) { const u = g.singleton('user', () => ({ id: fresh('user'), type: 'net.noodl.user.User', label: 'Current user', parameters: {} })); g.wire(u.id, 'id', n.id, 'modelId'); } else if (p.thing_to_change) { const c = compileExpr(g, p.thing_to_change, { page: bubblePage }); const ex = exprNode(g, `which ${coll}: ${c.text}`, `${c.js}?.id ?? ${c.js}`, c); g.wire(ex.id, 'result', n.id, 'modelId'); } for (const ch of Object.values(p.changes || {})) { if (!ch || !ch.key) continue; const field = fieldDisplay('', ch.key); wireValue(g, ch.value, n.id, `prop-${field}`, bubblePage, `${coll}.${field}`); } return { node: n, trigger: 'store', done: 'done' }; }
+    case 'ChangeThing': case 'MakeChangeCurrentUser': { stats.actionsMapped++; const isUser = action.type === 'MakeChangeCurrentUser' || p.thing_to_change?.type === 'CurrentUser'; const coll = isUser ? 'User' : typeDisplay(p.thing_to_change?.properties?.thing_type || thingTypeOf(p.thing_to_change, g) || p.thing_type || 'thing'); noteWrite(g, 'update', coll, bubblePage, evLabel, action, p.thing_to_change); const n = g.add({ id, type: 'SetDbModelProperties', label: `Make changes to ${isUser ? 'the current user' : 'a ' + coll}`, parameters: { collectionName: collName(coll), idSource: 'explicit' } }); if (isUser) { const u = g.singleton('user', () => ({ id: fresh('user'), type: 'net.noodl.user.User', label: 'Current user', parameters: {} })); g.wire(u.id, 'id', n.id, 'modelId'); } else if (p.thing_to_change) { const c = compileExpr(g, p.thing_to_change, { page: bubblePage }); const ex = exprNode(g, `which ${coll}: ${c.text}`, `${c.js}?.id ?? ${c.js}`, c); g.wire(ex.id, 'result', n.id, 'modelId'); } for (const ch of Object.values(p.changes || {})) { if (!ch || !ch.key) continue; const field = fieldDisplay('', ch.key); wireValue(g, ch.value, n.id, `prop-${field}`, bubblePage, `${coll}.${field}`); } return { node: n, trigger: 'store', done: 'done' }; }
     case 'OpenURL': { stats.actionsMapped++; const n = g.add({ id, type: 'net.noodl.externallink', label: 'Open an external website', parameters: { openInNewTab: !!p.new_tab } }); wireValue(g, p.url, n.id, 'link', bubblePage, 'url'); return { node: n, trigger: 'do', done: 'done' }; }
     case 'GoPrevious': { stats.actionsMapped++; const n = g.add({ id, type: 'PageStackNavigateBack', label: 'Go to previous page', parameters: {} }); return { node: n, trigger: 'navigate', done: 'done' }; }
     case 'ScrollToElement': case 'ResetInputs': case 'ResetGroup': case 'TerminateWorkflow': case 'AnimateElement': case 'ListShowNext': case 'ListShowPrevious': case 'SetFocusToElement': case 'PauseWFClient': { stats.actionsMapped++; const ref = elementIndex[p.element_id]; const n = g.add({ id, type: 'Expression', label: `${action.type}${ref ? ' ' + ref.label : ''} (small action)`, parameters: { expression: `/* ${action.type} ${ref?.label || ''} */ true` } }); if (action.type === 'ScrollToElement' && ref && ref.componentPath === g.path) { g.wire(n.id, 'done', ref.nodeId, 'scrollIntoView'); } else if (action.type === 'SetFocusToElement' && ref && ref.componentPath === g.path) g.wire(n.id, 'done', ref.nodeId, 'focus'); else todo(bubblePage.name, `${action.type}: a one-signal action with no exact node yet (chain kept)`); return { node: n, trigger: 'run', done: 'done' }; }
@@ -567,7 +669,7 @@ function setUserProps(g, n, changes, bubblePage, extra = []) { const props = [..
 function convertCloudAction(g, action, p, id, bubblePage, evLabel) {
   const where = `${bubblePage.name} / ${evLabel}`; const mapped = (r) => { stats.actionsMapped++; return r; };
   switch (action.type) {
-    case 'SignUp': case 'CreateUserAccount': { const n = g.add({ id, type: 'noodl.cloud.createuser', label: action.type === 'SignUp' ? 'Sign the user up (create the account)' : 'Create an account for someone else', parameters: {} }); wireValue(g, p.email, n.id, 'email', bubblePage, 'email'); wireValue(g, p.email, n.id, 'username', bubblePage, 'email'); wireValue(g, p.password, n.id, 'password', bubblePage, 'password'); setUserProps(g, n, p.changes, bubblePage);
+    case 'SignUp': case 'CreateUserAccount': { sawSignup = true; const n = g.add({ id, type: 'noodl.cloud.createuser', label: action.type === 'SignUp' ? 'Sign the user up (create the account)' : 'Create an account for someone else', parameters: {} }); wireValue(g, p.email, n.id, 'email', bubblePage, 'email'); wireValue(g, p.email, n.id, 'username', bubblePage, 'email'); wireValue(g, p.password, n.id, 'password', bubblePage, 'password'); setUserProps(g, n, p.changes, bubblePage);
       if (action.type === 'SignUp') ai(where, 'Sign the user up in a backend workflow: the account is created here, but a backend has no browser session to sign in — signing in stays on the page');
       if (p.send_confirm_email) ai(where, `${action.type} with "send a confirmation email": wire Done into a Send Email node with the Verify Email template`);
       if (!p.email) todo(where, `${action.type}: no email given (Bubble's form had none filled), so the account has no username`);
@@ -600,7 +702,7 @@ function convertCloudAction(g, action, p, id, bubblePage, evLabel) {
     case 'SetTemporaryPassword': return placeholder(g, id, 'Assign a temporary password', where, 'Assign a temp password: an Update User with a generated password (a JavaScript function makes it) and an email that carries it');
     case 'SendMagicLink': return placeholder(g, id, 'Send a magic login link', where, `Send magic login link: the backend's email sign-in sends its own link from the page's sign-in (success page ${pageById[p.success_page]?.name || p.success_page || '—'})`);
     case 'SendICSFileEmail': return placeholder(g, id, 'Send an ICS calendar email', where, 'Send ICS file email: Send Email has no attachment; a JavaScript function building the .ics and calling the mailer');
-    case 'ChangeListOfThings': case 'DeleteListOfThings': case 'CopyListOfThings': { const t = typeDisplay(p.type_to_change || p.type_to_delete || p.type_to_copy || 'thing'); return placeholder(g, id, `${{ ChangeListOfThings: 'Make changes to a list of', DeleteListOfThings: 'Delete a list of', CopyListOfThings: 'Copy a list of' }[action.type]} ${t}s`, where, `${action.type} (${t}): one write per record — a for-each step in a backend workflow definition, or a JavaScript function over Noodl.Records`); }
+    case 'ChangeListOfThings': case 'DeleteListOfThings': case 'CopyListOfThings': { const t = typeDisplay(p.type_to_change || p.type_to_delete || p.type_to_copy || 'thing'); noteWrite(g, { ChangeListOfThings: 'update', DeleteListOfThings: 'delete', CopyListOfThings: 'create' }[action.type], t, bubblePage, evLabel, action); return placeholder(g, id, `${{ ChangeListOfThings: 'Make changes to a list of', DeleteListOfThings: 'Delete a list of', CopyListOfThings: 'Copy a list of' }[action.type]} ${t}s`, where, `${action.type} (${t}): one write per record — a for-each step in a backend workflow definition, or a JavaScript function over Noodl.Records`); }
     case 'SetSlug': return placeholder(g, id, 'Set a slug', where, 'Set a thing\'s slug: NodeGX records have no slug; a `slug` column set with Set Record Properties, and a page that queries by it');
     case 'UploadCSVData': return placeholder(g, id, `Upload data as CSV into ${typeDisplay(p.data_type)}`, where, `Upload data as CSV (${typeDisplay(p.data_type)}, ${p.separator || 'comma'}): a Parse CSV node, then one Create Record per row`);
     case 'DeleteUploadedFile': return placeholder(g, id, 'Delete an uploaded file', where, "Delete an uploaded file: the backend's file store has a delete route but no node yet");
@@ -616,11 +718,11 @@ function convertBackendWorkflow(wf) {
     const params = Object.values(pp.parameters || {}).filter((q) => q?.param_name); const rets = Object.values(pp.return_types || {}).filter((r) => r?.display);
     const ins = g.add({ id: `in_${wf.id}`, type: 'Component Inputs', label: `${pp.event_name}(${params.map((q) => q.param_name).join(', ')})`, ports: [{ name: 'run', plug: 'output', type: 'signal' }, ...params.map((q) => ({ name: pname(q.param_name), plug: 'output', type: btypeToParam(q.btype_id, q.is_list) === 'array' ? 'array' : '*' }))], x: 40, y: 40 });
     const outs = g.add({ id: `out_${wf.id}`, type: 'Component Outputs', label: 'Returns', ports: [{ name: 'done', plug: 'input', type: 'signal' }, ...rets.map((r) => ({ name: pname(r.display), plug: 'input', type: '*' }))], x: 400, y: 40 });
-    cloud = { kind: 'custom', req: ins, outs }; wfReceiver = ins; let from = { id: ins.id, port: 'run' };
+    cloud = { kind: 'custom', req: ins, outs, name: nm }; wfReceiver = ins; wfCondition = pp.condition || null; wfParams = Object.fromEntries(params.map((q) => [q.param_name, q.btype_id])); let from = { id: ins.id, port: 'run' };
     if (pp.condition) { const c = compileExpr(g, pp.condition, { page: fake }); const cond = g.add({ id: fresh('wfc'), type: 'Condition', label: `Only when ${c.text}`, parameters: {} }); const ex = exprNode(g, `Only when ${c.text}`, c.js, c); g.wire(ex.id, 'result', cond.id, 'condition'); g.wire(ins.id, 'run', cond.id, 'eval'); from = { id: cond.id, port: 'ontrue' }; }
     const end = chainActions(g, wf, from.id, from.port, fake, `custom event ${pp.event_name}`); if (!end.ended && end.fromId) g.wire(end.fromId, end.fromPort, outs.id, 'done');
     if (rets.length) ai(fake.name, `return values ${rets.map((r) => r.display).join(', ')}: wired from a Return data step when there is one; Bubble's custom event returns through "Return data", so check each is set`);
-    cloud = null; wfReceiver = null; return;
+    cloud = null; wfReceiver = null; wfCondition = null; wfParams = {}; return;
   }
   const g = new Graph(`/#__cloud__/${nm}`, 'cloud', `Converted from the Bubble backend workflow "${nm}" (${wf.type}, ${wf.id})`); components.push(g);
   let params = [], allowNoAuth = false, kind, thingPort = null;
@@ -636,19 +738,19 @@ function convertBackendWorkflow(wf) {
     ai(fake.name, `a recurring event on each ${typeDisplay(pp.custom_event_data_type)}: Bubble's frequency is chosen where "Schedule a recurring event" runs, per thing; a NodeGX schedule runs the function on one cron with no thing — the trigger is written DISABLED at daily midnight, and the function should query the ${typeDisplay(pp.custom_event_data_type)}s it runs on`); }
   else { ai(fake.name, `backend workflow type ${wf.type} not in the dictionary; its steps are converted under a Request`); kind = 'api'; }
   const req = g.add({ id: `req_${wf.id}`, type: 'noodl.cloud.request', label: `${nm}(${params.map((q) => q.name).join(', ')})`, parameters: { params: params.map((q) => q.name).join(','), ...Object.fromEntries(params.flatMap((q) => [[`ptype-${q.name}`, q.type], [`preq-${q.name}`, q.required]])), allowNoAuth: allowNoAuth || kind !== 'api' }, x: 40, y: 40 });
-  cloud = { kind, req, thingPort }; let from = { id: req.id, port: 'receive' };
+  cloud = { kind, req, thingPort, name: nm }; wfCondition = pp.condition || null; wfThingType = pp.data_trigger_type || pp.custom_event_data_type || null; wfParams = Object.fromEntries(Object.values(pp.parameters || {}).filter((q) => q && (q.key || q.param_name)).map((q) => [q.key || q.param_name, q.value || q.btype_id])); let from = { id: req.id, port: 'receive' };
   if (pp.condition) { const c = compileExpr(g, pp.condition, { page: fake }); const cond = g.add({ id: fresh('wfc'), type: 'Condition', label: `Only when ${c.text}`, parameters: {} }); const ex = exprNode(g, `Only when ${c.text}`, c.js, c); g.wire(ex.id, 'result', cond.id, 'condition'); g.wire(req.id, 'receive', cond.id, 'eval'); from = { id: cond.id, port: 'ontrue' };
     const skipped = g.add({ id: fresh('res'), type: 'noodl.cloud.response', label: 'Not run (the condition was false)', parameters: pp.return_200_if_not_run === false ? { status: 'failure', errorMessage: 'not run' } : {} }); g.wire(cond.id, 'onfalse', skipped.id, 'send'); }
   ending(g, chainActions(g, wf, from.id, from.port, fake, `${wf.type} ${nm}`));
   if (kind !== 'api') { functionRules[nm] = { call: 'nobody' }; ai(fake.name, `${nm} is run by its trigger, which sends no session, so its Request allows unauthenticated calls; backend/triggers.bubble.json proposes "call": "nobody" for it in nodegx.security.json so the public /functions/${nm} door is shut (unmeasured: that a trigger run skips the call rule)`); }
   else functionRules[nm] = { call: allowNoAuth ? 'public' : 'authenticated' };
-  cloud = null;
+  cloud = null; wfCondition = null; wfThingType = null; wfParams = {};
 }
 
 // ---------------------------------------------------------------- run
 // reusable elements first (so instances know their path), then option sets, then pages
 function convertReusable(id, def) {
-  const name = def.name || id; const g = new Graph(reusablePath(id), 'visual', `Converted from Bubble reusable element "${name}" (${id}, a ${def.properties?.element_type || 'Group'})`);
+  const name = def.name || id; const g = new Graph(reusablePath(id), 'visual', `Converted from Bubble reusable element "${name}" (${id}, a ${def.properties?.element_type || 'Group'})`); g.itemType = def.properties?.group_type || null; // its "Type of content"
   components.push(g); stats.reusables++;
   const pp = def.properties || {}; const fake = { id, name: `reusable ${name}`, properties: pp, elements: def.elements, workflows: def.workflows, custom_states: def.custom_states };
   const root = g.add({ id: `root_${id}`, type: 'Group', label: name, parameters: { ...layoutParams({ ...pp, horiz_alignment: 'stretch', single_width: false, single_height: false, width: undefined, height: undefined }, 'flex', 'Group'), ...styleParams(pp, 'Group'), width: pct(100), sizeMode: 'contentHeight', flexDirection: pp.container_layout === 'row' ? 'row' : 'column' }, children: [], x: 40, y: 40 });
@@ -660,8 +762,8 @@ function convertReusable(id, def) {
   for (const [sk, sv] of Object.entries(def.custom_states || {})) { const nm = `${name}.${sv.display || sk}`.replace(/\W+/g, '_'); g.add({ id: `state_${id}_${sk.replace(/\W+/g, '_')}`, type: 'Variable2', label: `State ${sv.display || sk}`, parameters: { name: nm }, metadata: { customState: { of: root.id, name: sv.display || sk, type: sv.value } } }); stats.customStates++; }
   for (const wf of Object.values(def.workflows || {})) if (wf && typeof wf === 'object' && wf.type) { try { convertWorkflow(g, wf, fake); } catch (e) { stats.crashes = (stats.crashes || 0) + 1; todo(`reusable ${name} workflow ${wf.id}`, `the converter threw on this ${wf.type}: ${String(e.message).slice(0, 100)}`); } }
 }
-for (const [id, def] of Object.entries(customElements)) if (def && def.type === 'CustomDefinition') { for (const k of [id, def.id]) if (k) elementIndex[k] = { nodeId: `root_${id}`, type: 'Group', componentPath: reusablePath(id), label: def.name || id }; preIndex(def.elements, reusablePath(id), `reusable ${def.name || id}`); }
-for (const [, p] of pages) { elementIndex[p.id] = { nodeId: `page_${p.id}`, type: 'Page', componentPath: pageComponentPath(p), page: p, label: p.name }; preIndex(p.elements, pageComponentPath(p), p.name); }
+for (const [id, def] of Object.entries(customElements)) if (def && def.type === 'CustomDefinition') { for (const k of [id, def.id]) if (k) elementIndex[k] = { nodeId: `root_${id}`, type: 'Group', componentPath: reusablePath(id), label: def.name || id }; preIndex(def.elements, reusablePath(id), `reusable ${def.name || id}`, def.properties?.group_type); }
+for (const [, p] of pages) { elementIndex[p.id] = { nodeId: `page_${p.id}`, type: 'Page', componentPath: pageComponentPath(p), page: p, label: p.name }; preIndex(p.elements, pageComponentPath(p), p.name, p.properties?.page_type); }
 for (const [id, def] of Object.entries(customElements)) if (def && def.type === 'CustomDefinition') convertReusable(id, def);
 for (const [key, os] of Object.entries(optionSets)) {
   if (!os || typeof os !== 'object' || os.deleted) continue; const name = os.display || key; const g = new Graph(`/Option sets/${safeName(name)}`, 'visual', `Bubble option set "${name}" (${key})`); components.push(g); stats.optionSets++;
@@ -681,6 +783,73 @@ appG.add({ id: 'app_root', type: 'Group', label: 'App', parameters: { sizeMode: 
 appG.add({ id: 'app_router', type: 'Router', label: 'Main router', parent: 'app_root', parameters: { name: 'Main', pages: { startPage: startPage ? pageComponentPath(startPage) : undefined, routes: pages.map(([, p]) => pageComponentPath(p)) } }, x: 100, y: 160 });
 const defaultFont = cs.font_tokens?.default; if (defaultFont) appG.add({ id: 'app_css', type: 'CSS Definition', label: 'Bubble defaults', parameters: { style: `html, body { font-family: "${defaultFont}", sans-serif; }` }, x: 400, y: 40 });
 
+// ---------------------------------------------------------------- s6: nodegx.security.json, from the privacy rules and the writes read above
+function buildSecurity() {
+  const config = { version: 1, devOpen: false, defaults: { permissions: { find: 'nobody', get: 'nobody', create: 'nobody', update: 'nobody', delete: 'nobody' }, creatorOwns: false }, collections: {}, functions: {}, files: { upload: 'nobody', read: 'nobody', delete: 'nobody' }, signup: sawSignup ? 'public' : 'nobody' };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const ruleOf = (entries) => { const atoms = entries.map((e) => e.atom).filter((a) => a === 'public' || a === 'authenticated' || (a && typeof a === 'object')); if (atoms.includes('public')) return 'public'; if (atoms.includes('authenticated')) return 'authenticated'; const paths = atoms.filter((a) => typeof a === 'object'); return paths.length === 0 ? 'nobody' : paths.length === 1 ? paths[0] : paths; };
+  const asSignedIn = (e) => e.atom === 'creatorOwns' || e.atom === 'self' ? { atom: 'authenticated' } : e;
+  const grantsOf = (p) => ['view_all', 'view_fields', 'search_for', 'view_attachments', 'auto_binding', 'create_api', 'modify_api', 'delete_api'].filter((k) => k === 'view_fields' ? Object.values(p.view_fields || {}).length && !p.view_all : p[k]).join(', ') || 'nothing';
+  const viewFields = (p) => Object.values(p.view_fields || {});
+  const reads = (p) => !!(p.view_all || viewFields(p).length || p.auto_binding);
+  const rows = [], ruleRows = [], writeRows = []; let anyRules = false; const attachReaders = [];
+  const anyRulesAtAll = liveEntries(userTypes).some(([, t]) => t.privacy_role && Object.keys(t.privacy_role).length);
+  const writeRow = (w) => `| ${w.coll} | ${w.op} | ${w.kind === 'cloud' ? (w.shared ? 'a shared custom event' : 'backend workflow ' + w.fn) : 'the page'} | ${w.kind === 'cloud' ? w.where.split(' / ').pop() : w.where} | ${w.cond.replace(/\|/g, '\\|')} | ${w.coll === '_User' ? (w.otherUser ? "another user's row: not reachable through the data routes" : 'own row (the User nodes)') : w.kind === 'cloud' ? 'as system' : ruleText(w.cls.atom === 'creatorOwns' || w.cls.atom === 'self' ? 'authenticated' : w.cls.atom) + (w.cls.note ? ' (' + w.cls.note + ')' : '')} |`;
+  for (const [k, t] of liveEntries(userTypes)) {
+    if (!t.fields && !t.display) continue;
+    const display = typeDisplay(k); const coll = collName(display); const where = `data type ${display}`;
+    const rules = Object.entries(t.privacy_role || {}).map(([key, r]) => ({ key, display: r.display || key, perms: r.permissions || {}, cls: r.condition ? classifyCondition(r.condition, k) : { atom: 'public', text: 'everyone' } }));
+    if (rules.length) anyRules = true;
+    const granted = rules.filter((r) => r.cls.atom !== null && !(coll !== '_User' && r.cls.atom === 'self'));
+    for (const r of rules) ruleRows.push(`| ${display} | ${r.display} | ${r.cls.text} | ${granted.includes(r) ? ruleText(r.cls.atom) : 'none (' + (r.cls.note || 'no rule says it') + ')'} | ${grantsOf(r.perms)} |`);
+    for (const r of rules.filter((r) => !granted.includes(r))) if (coll !== '_User') ai(where, `privacy rule "${r.display}" (${r.cls.text}): no NodeGX rule says it${r.cls.note ? ' — ' + r.cls.note : ''}; what it granted (${grantsOf(r.perms)}) is NOT written, so those readers see nothing until a person writes the rule`);
+    for (const r of granted) if (r.cls.note) ai(where, `privacy rule "${r.display}" (${r.cls.text}): ${r.cls.note}`);
+    attachReaders.push(...granted.filter((r) => r.perms.view_attachments).map((r) => asSignedIn(r.cls)));
+    const cloudW = writes.filter((w) => w.coll === coll && w.kind === 'cloud'); const pageW = (op) => writes.filter((w) => w.coll === coll && w.op === op && w.kind === 'page');
+    for (const w of writes.filter((w) => w.coll === coll)) writeRows.push(writeRow(w));
+    if (coll === '_User') { if (rules.length || writes.some((w) => w.coll === coll)) ai(where, `Bubble's User privacy rules (${rules.map((r) => r.display).join(', ') || 'none'}) and its ${writes.filter((w) => w.coll === coll).length} writes have no place in nodegx.security.json: _User is a system collection with a fixed posture — a signed-in user reads and changes their own row through the User nodes, and nobody reads other users' rows through the data routes. A page that searches Users, or shows one user's fields to another, needs a Profile collection holding those fields; which fields is a person's call${writes.some((w) => w.coll === coll && w.otherUser) ? `. ${writes.filter((w) => w.coll === coll && w.otherUser).length} step(s) change a user other than the current one (the writes table says which): a cloud function running as system does that, or the Profile collection takes those fields` : ''}`); rows.push(`| _User | fixed | fixed | fixed | own row | fixed | — | — |`); continue; }
+    const getE = granted.filter((r) => reads(r.perms)).map((r) => r.cls), findE = granted.filter((r) => r.perms.search_for).map((r) => r.cls), bind = granted.filter((r) => r.perms.auto_binding).map((r) => r.cls);
+    if (!rules.length) { if (anyRulesAtAll) ai(where, 'no privacy rules in Bubble, so every row was readable by everyone; find and get are public here, as they were'); getE.push({ atom: 'public' }); findE.push({ atom: 'public' }); }
+    const creatorOnlyReads = (getE.length + findE.length) > 0 && [...getE, ...findE].every((e) => e.atom === 'creatorOwns');
+    const entry = { permissions: {}, creatorOwns: creatorOnlyReads };
+    const readRule = (E) => creatorOnlyReads ? 'authenticated' : ruleOf(E);
+    entry.permissions.find = readRule(findE); entry.permissions.get = readRule(getE);
+    if (!creatorOnlyReads && [...getE, ...findE].some((e) => e.atom === 'creatorOwns')) ai(where, 'a privacy rule lets the creator read this beside a wider rule: the wider one is the rule (creatorOwns would hide every row from everyone but its creator)');
+    for (const op of ['create', 'update', 'delete']) {
+      const E = [...pageW(op).map((w) => w.cls), ...(op === 'update' ? bind : [])];
+      if (!E.length) { entry.permissions[op] = 'nobody'; continue; }
+      entry.permissions[op] = ruleOf(E.map(asSignedIn));
+      if (E.every((e) => e.atom === 'creatorOwns') && !entry.creatorOwns) ai(where, `every page ${op} of a ${display} ran only for its creator in Bubble; here any signed-in caller may ${op} any row the read rule shows them (creatorOwns would also hide the rows from other readers) — a cloud function that checks createdBy is the NodeGX way to keep it`);
+    }
+    if (bind.length) ai(where, `auto-binding (${granted.filter((r) => r.perms.auto_binding).map((r) => `${r.display}: ${Object.values(r.perms.binding_fields || {}).map((f) => fieldDisplay(k, f)).join(', ') || 'no fields'}`).join('; ')}) is an update rule here, and an update rule covers every field`);
+    const cols = (dbCollections.find((c) => c.name === coll)?.columns || []).map((c) => c.name); const colOf = (fk) => fk === 'Created By' ? 'createdBy' : (t.fields?.[fk] ? (t.fields[fk].display || fieldDisplay(k, fk)) : null);
+    const fields = {};
+    if (granted.some((r) => reads(r.perms) && !r.perms.view_all)) for (const c of [...cols, 'createdBy']) { // some reader sees a part: per field, who reads it (ANDed with get/find by the backend)
+      const readers = granted.filter((r) => reads(r.perms) && (r.perms.view_all || viewFields(r.perms).some((fk) => colOf(fk) === c))).map((r) => r.cls);
+      const rule = creatorOnlyReads ? 'authenticated' : ruleOf(readers); if (!same(rule, entry.permissions.get)) fields[c] = { read: rule };
+    }
+    if (Object.keys(fields).length) entry.fields = fields;
+    if (granted.some((r) => r.perms.create_api || r.perms.modify_api || r.perms.delete_api)) ai(where, "Bubble's Data API door (create / modify / delete via API) has no separate rule here: the collection's create / update / delete rule is the one door, for the app and for an API key alike");
+    if (granted.some((r) => Object.keys(r.perms.non_filterable_fields || {}).length)) ai(where, 'non-filterable fields (a field a search may not constrain on) have no counterpart; a field a caller may not read is already refused by name in a where');
+    config.collections[coll] = entry;
+    rows.push(`| ${coll} | ${['find', 'get', 'create', 'update', 'delete'].map((op) => ruleText(entry.permissions[op])).join(' | ')} | ${entry.creatorOwns} | ${Object.keys(fields).join(', ') || '—'} |`);
+  }
+  for (const coll of new Set(writes.filter((w) => w.coll !== '_User' && !config.collections[w.coll]).map((w) => w.coll))) { for (const w of writes.filter((w) => w.coll === coll)) writeRows.push(writeRow(w)); ai(`writes to ${coll}`, `${writes.filter((w) => w.coll === coll).length} step(s) write a "${coll}", which is not one of the app's data types (deleted, or the backend request names it differently from the bundle): no rule is written for it`); }
+  for (const fn of new Set(writes.filter((w) => w.kind === 'cloud' && !w.shared && w.fn).map((w) => w.fn))) { if (!functionRules[fn]) functionRules[fn] = { call: 'authenticated' }; functionRules[fn].runAs = 'system'; ai(`backend workflow ${fn}`, `writes ${[...new Set(writes.filter((w) => w.fn === fn && !w.shared).map((w) => `${w.coll} (${w.op})`))].join(', ')}: it runs as "system" so the write passes as it did on Bubble's server, behind the function's own Only when — and its reads skip the collection rules too, as Bubble's "ignore privacy rules" would`); }
+  for (const nm of new Set(writes.filter((w) => w.kind === 'cloud' && w.shared).map((w) => w.fn))) ai(`backend custom event ${nm}`, `writes ${[...new Set(writes.filter((w) => w.fn === nm && w.shared).map((w) => `${w.coll} (${w.op})`))].join(', ')}: a shared custom event runs inside whichever function triggers it; that function needs "runAs": "system" in nodegx.security.json for the write to pass`);
+  config.functions = functionRules;
+  config.files.read = anyRules ? ruleOf(attachReaders) : 'public'; // Bubble serves a file by its URL unless it was made private
+  if (/"(PictureUploader|FileUploader)"/.test(srcText)) config.files.upload = 'authenticated';
+  if (!anyRules) ai('settings', 'no privacy rules anywhere: every collection reads as public here (Bubble\'s default); the create / update / delete rules are the floors the writes table shows');
+  const report = ['## Security — nodegx.security.json (proposed)', '',
+    "Bubble's privacy rules decide who reads a type; the app's own workflows decide who writes (a page workflow's step ran on Bubble's server behind its Only when, which privacy rules never see). Here a page's Record node writes from the browser behind the collection rule, so each create / update / delete below is the widest condition any page write of that type ran under — the floor. A backend workflow that writes runs as `system`, which keeps Bubble's shape (the server writes, behind the function's own condition). Tighten where the writes table says a person should; `_User` has a fixed posture (own row through the User nodes).", '',
+    '| collection | find | get | create | update | delete | creatorOwns | fields ruled |', '|---|---|---|---|---|---|---|---|', ...rows, '',
+    `Functions: ${Object.entries(config.functions).map(([f, r]) => `${f} (call ${ruleText(r.call)}${r.runAs ? ', runs as system' : ''})`).join('; ') || 'none'}. Files: upload ${config.files.upload}, read ${ruleText(config.files.read)}, delete ${config.files.delete}. Signup: ${config.signup}.`, '',
+    '### The privacy rules read', '', '| type | rule | condition | NodeGX rule | Bubble granted |', '|---|---|---|---|---|', ...(ruleRows.length ? ruleRows : ['| — | — | no privacy rules in the app | — | — |']), '',
+    '### The writes read', '', '| collection | op | runs in | where | Only when | rule it needs |', '|---|---|---|---|---|---|', ...(writeRows.length ? writeRows : ['| — | — | no step in the app creates, changes or deletes a thing | — | — | — |']), ''];
+  return { config, report };
+}
+
 // write
 const now = new Date().toISOString();
 fs.rmSync(outDir, { recursive: true, force: true }); fs.mkdirSync(path.join(outDir, 'components'), { recursive: true }); fs.mkdirSync(path.join(outDir, 'docs'), { recursive: true });
@@ -694,7 +863,8 @@ for (const g of components) {
   registry.components[rel] = { path: rel, type: g.kind === 'page' ? 'page' : g.kind === 'cloud' ? 'cloud' : 'visual', nodeCount: g.nodes.length, connectionCount: g.connections.length, modified: now, created: now };
 }
 fs.writeFileSync(path.join(outDir, 'components', '_registry.json'), JSON.stringify(registry, null, 2));
-if (triggersOut.length || Object.keys(functionRules).length) { fs.mkdirSync(path.join(outDir, 'backend'), { recursive: true }); fs.writeFileSync(path.join(outDir, 'backend', 'triggers.bubble.json'), JSON.stringify({ note: 'From the Bubble import: a trigger lives on the backend, not in the project. Once a backend is bound, create each with the MCP tool create_backend_trigger (the objects below are its input), and merge `functions` into nodegx.security.json.', triggers: triggersOut, functions: functionRules }, null, 2)); }
+const security = buildSecurity(); fs.writeFileSync(path.join(outDir, 'nodegx.security.json'), JSON.stringify(security.config, null, 2) + '\n');
+if (triggersOut.length || Object.keys(functionRules).length) { fs.mkdirSync(path.join(outDir, 'backend'), { recursive: true }); fs.writeFileSync(path.join(outDir, 'backend', 'triggers.bubble.json'), JSON.stringify({ note: 'From the Bubble import: a trigger lives on the backend, not in the project. Once a backend is bound, create each with the MCP tool create_backend_trigger (the objects below are its input). `functions` is the same block nodegx.security.json carries, for reference.', triggers: triggersOut, functions: functionRules }, null, 2)); }
 const BUILTIN_FONTS = new Set(['Arial', 'Arial Black', 'Courier New', 'Helvetica', 'Impact', 'Lucida Console', 'Tahoma', 'Times New Roman', 'Verdana', 'Georgia', 'serif', 'sans-serif', 'monospace', 'system-ui']);
 const fontFamilies = [...fontsUsed].filter(([f]) => f && !BUILTIN_FONTS.has(f) && !/^var\(/.test(f)).map(([f, ws]) => `family=${encodeURIComponent(f).replace(/%20/g, '+')}${ws.size ? ':wght@' + [...ws].filter((w) => w >= 100 && w <= 900).sort((a, b) => a - b).join(';') : ''}`);
 if (usedMaterialIcons) fontFamilies.push('family=Material+Icons');
@@ -707,6 +877,6 @@ const report = [`# Bubble → NodeGX import report`, '', `Source: ${path.basenam
   '| what | count | mapped |', '|---|---|---|',
   `| pages | ${pages.length} | ${pages.length} |`, `| elements | ${stats.elements} | ${stats.mapped} (${pctOf(stats.mapped, stats.elements)}%) |`, `| element conditions | ${stats.states} | see findings |`, `| styles → variants | ${Object.keys(app.styles || {}).length} | ${stats.styles} |`,
   `| workflows | ${stats.workflows} | ${stats.workflows} |`, `| actions | ${stats.actions} | ${stats.actionsMapped} (${pctOf(stats.actionsMapped, stats.actions)}%) |`, `| expressions compiled | ${stats.expressions} | unknown operators: ${stats.exprOpsUnknown}; field reads guessed by name: ${stats.fieldReadsGuessed} |`, `| data types → collections | ${Object.keys(userTypes).length} | ${dbCollections.length}${Object.values(userTypes).some((t) => t?.deleted) ? ` (${Object.values(userTypes).filter((t) => t?.deleted).length} deleted in Bubble, skipped)` : ''} |`, `| reusable elements → components | ${Object.keys(customElements).length} | ${stats.reusables} |`, `| option sets → components | ${Object.keys(optionSets).length} | ${stats.optionSets}${Object.values(optionSets).some((o) => o?.deleted) ? ` (${Object.values(optionSets).filter((o) => o?.deleted).length} deleted in Bubble, skipped)` : ''} |`, `| custom states → variables | — | ${stats.customStates} |`, `| searches → queries | — | ${stats.searches || 0} |`, `| backend workflows → cloud functions | ${apiWorkflows.length} | ${stats.backendWorkflows || 0} (triggers proposed: ${triggersOut.length}) |`, `| disabled steps skipped | — | ${stats.actionsDisabled || 0} |`, `| converter crashes (caught) | — | ${stats.crashes || 0} |`, '',
-  `## Findings (${findings.length})`, '', '| needs | where | what |', '|---|---|---|', ...findings.map((f) => `| ${f.level === 'ai' ? 'a person or an AI' : 'the dictionary'} | ${f.where} | ${f.what.replace(/\|/g, '\\|')} |`), ''].join('\n');
+  ...security.report, `## Findings (${findings.length})`, '', '| needs | where | what |', '|---|---|---|', ...findings.map((f) => `| ${f.level === 'ai' ? 'a person or an AI' : 'the dictionary'} | ${f.where} | ${f.what.replace(/\|/g, '\\|')} |`), ''].join('\n');
 fs.writeFileSync(path.join(outDir, 'docs', 'IMPORT-REPORT.md'), report);
 console.log(report);

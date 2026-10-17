@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-17, evening
+
+### Added
+
+- `nodegx.security.json` is written beside the project file: privacy rules become read rules, the app's own
+  *Create / Make changes / Delete* steps become the create, update and delete rules (the widest condition a step ran
+  under is the floor), a backend workflow that writes runs as `system`. The import report has a *Security* section
+  listing every rule read, every step that writes and the condition it ran under. See `docs/FINDINGS.md`.
+
+### Fixed
+
+- A *Make changes to a thing* or *Delete a thing* step with no explicit type named its collection after the
+  expression's node kind (`Message`) or `thing`. The converter now works the type out: a repeating group's row, the
+  nearest group with a type, a reusable element's type of content, the result of an earlier step, an element's type
+  or data source, the workflow's thing, a parameter, a search, or a field's type. On one production app 111 of 216
+  such steps were wrong; 4 remain (they read an element that is not in the export).
+
 ## 2026-10-17
 
 ### Added

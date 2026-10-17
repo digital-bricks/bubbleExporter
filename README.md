@@ -27,7 +27,8 @@ node converter/bubble-data-to-nodegx.mjs out/editor.export.json examples/data-ex
 ```
 
 Open `out/test-app` or `out/editor` in the NodeGX editor. Each one has `docs/IMPORT-REPORT.md`, which lists what
-still needs a person. Running the converter again replaces its output folder.
+still needs a person, and `nodegx.security.json`, the access rules proposed from your privacy rules and workflows —
+read its *Security* section before you deploy. Running the converter again replaces its output folder.
 
 ## Convert your own app
 

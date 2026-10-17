@@ -122,17 +122,24 @@ Each of these is a known shape: a table row still to write, a NodeGX node still 
   node that provides that API could run many plugins without a port each. A server-side action has to be rewritten,
   for example as a cloud function, from its fields. Running a plugin's code outside Bubble is also a licence question
   for each plugin, since many are paid and licensed per app.
-- **Privacy rules** are reported, not converted yet. Each type's rules are in the bundles and in the editor's
-  `entpawjzehwq0tbk` request: a condition in the same expression language (none for `everyone`), and the
-  permissions *view all fields* (or a list of fields), *find this in searches*, *view attached files*, *allow
-  auto-binding* (with its fields) and the Data API's create, modify and delete. Most of it maps onto NodeGX's
-  `nodegx.security.json`: *Current User is logged in* is `authenticated`, *This thing's Creator is Current User* is
-  `creatorOwns`, a field pointing at the current user is a path rule, *find this in searches* is `find`, and a list
-  of fields is per-field read rules. The open question is writes. As we understand Bubble (not yet tested), privacy
-  rules guard reads, auto-binding and the Data API, while a page workflow that changes a thing runs on Bubble's
-  server, checked by its own *Only when*. A converted page writes from the browser, through each collection's
-  create, update and delete rules, so those rules have to come from the workflows that write each type. Otherwise a
-  check Bubble made on its server becomes one in the browser that anyone can skip.
+- **Privacy rules** are converted into `nodegx.security.json`, the file NodeGX's backend reads for its rules,
+  written beside the project file; the import report has a *Security* section listing every rule read, every step
+  that writes, and the rules proposed. A rule's condition becomes one NodeGX rule or none: *Current User is logged in*
+  is `authenticated`, no condition (*everyone*) is `public`, *This thing's Creator is Current User* is `creatorOwns`
+  (only when no wider rule reads the type, because `creatorOwns` also hides the row from everyone else), a field
+  pointing at the current user is a path rule, and a condition no rule can say is not written at all: its grants are
+  dropped and the report says so, so a stranger never gets more than Bubble gave. *Find this in searches* is `find`,
+  *view all fields* or a list of fields is `get` with per-field read rules, *view attached files* is the file read
+  rule, auto-binding is an update grant. Bubble's User type has no entry: NodeGX's `_User` has a fixed posture (a
+  signed-in user reads and changes their own row through the User nodes), so its rules are explained in the report,
+  and an app that shows users to other users needs a Profile collection.
+  **Writes come from the app's own workflows, not from the privacy rules.** In Bubble a page workflow's *Create*,
+  *Make changes* and *Delete* run on the server behind the workflow's *Only when*; privacy rules never see them. A
+  converted page writes from the browser through each collection's create, update and delete rule, so the converter
+  reads every such step, classifies the conditions it ran under, and writes the widest one as that rule — the floor
+  Bubble had, listed step by step for a person to tighten. A backend workflow that writes runs as `system`, which
+  keeps Bubble's shape. One thing NodeGX cannot yet say in a rule is *everyone reads, only the creator changes*;
+  the report names it where it happens.
 - **"Thing before change"** in a database trigger has no NodeGX counterpart: a NodeGX db-change trigger hands its
   function the record after the write only. It is read as empty, with a finding. Most database triggers compare
   before and after, so this matters.
