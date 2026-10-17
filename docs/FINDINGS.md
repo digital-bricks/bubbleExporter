@@ -15,6 +15,7 @@ describe. Every element, style, workflow, action and expression is a node with a
 | **A page's run-mode bundle**: `/package/dynamic_js/…/<page>/dynamic.js` | `const app = JSON.parse('…')` with settings, data types, option sets, styles and the reusable elements, then `app['%p3']['<page>'] = …` with that page's whole element tree and workflows | anyone who can open the page. One file per page gives the whole front end. |
 | **The Bubble editor's `c5r6j` request**: `https://bubble.io/appeditor/load_single_path/<app>/<version>/<hash>/c5r6j` | `{ last_change, data }`: every backend workflow | whoever can open the app in the Bubble editor |
 | **The Bubble editor's `dxr78ubfdtfq6tbmec` request** (the same URL ending in `/dxr78ubfdtfq6tbmec`) | `{ last_change, data }`: every option set, its attributes with their types, and each option's attribute values | whoever can open the app in the Bubble editor |
+| **The Bubble editor's `entpawjzehwq0tbk` request** | `{ last_change, data }`: every data type and field, deleted ones included. The bundles carry the same types, fields and defaults, so this one is optional | whoever can open the app in the Bubble editor |
 
 The bundles and the editor's answers use abbreviated keys (`%p` properties, `%x` type, `%el` elements, `%wf`
 workflows, `%ed` reusables, `%p3` pages, `%n` next, `%a` args, `%e` entries …). It is the same tree as the paid
@@ -75,7 +76,7 @@ what the NodeGX way would be.
 | one option in an expression | that option's row, so *option's attribute* reads the attribute |
 | reusable elements, custom states | components placed as instances, `Variable`s |
 | *Schedule API workflow* on a page | a call to the backend workflow's cloud function (now: a delay is not converted) |
-| data types | collections in the project, with their fields typed |
+| data types | collections in the project. Text, number, yes/no and date fields are String, Number, Boolean and Date; images and files a String holding the URL; a geographic address, number range or date range an Object; a date interval a Number; an option set field a String holding the option's database value; a link to a thing (or a User) a Pointer to that collection; a list of anything an Array. Default values carry over (dates are milliseconds since 1970). Deleted types and fields are skipped. Bubble's User is NodeGX's built-in `_User` |
 | the API Connector | one `HTTP` node per call a page uses, fetched when the page loads; field paths from the call's parsed types |
 
 ### Backend workflows
@@ -142,9 +143,10 @@ Each of these is a known shape: a table row still to write, a NodeGX node still 
   operators (not defined at run time), show/hide wired to a component instance that has no such input. Each is
   measured and is converter work; together they are why the next step is small templates, one feature at a time.
 - **Data.** Rows are not imported yet; the collections are declared, ready for a CSV importer.
-- **Option set dates and date intervals.** A date attribute is read as milliseconds since 1970, like a thing's
-  date; the example's only date (`60000`) was not one chosen on purpose, so that is assumed. A date interval's unit
-  is not known yet. A data type's field whose type is an option set is a plain text column holding the database value.
+- **Ranges and date intervals.** A number range or date range field is declared as an Object and a date interval as
+  a Number, but no example holds a value yet, so their stored shape and unit are not known. Dates are milliseconds
+  since 1970 (a field's default of 1 January 1970, midnight in Paris, is stored as `-3600000`).
+- **Created By.** Bubble fills it on every new thing; NodeGX does not, so reads of it are empty.
 
 ## 5. Why most of a Bubble app can be converted by a program
 

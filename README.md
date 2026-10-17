@@ -71,7 +71,9 @@ name contains `c5r6j` and ends in `.json`.
 **3. The option sets (optional).** The page bundles carry them already, but the Bubble editor's copy is the one you
 are editing, with every attribute and its type. In the same Network tab, filter on `dxr78ubfdtfq6tbmec` and save the
 response of the request ending in `/dxr78ubfdtfq6tbmec` into the folder, as any file whose name contains
-`dxr78ubfdtfq6tbmec` and ends in `.json`. A set in it replaces the bundle's set with the same key.
+`dxr78ubfdtfq6tbmec` and ends in `.json`. A set in it replaces the bundle's set with the same key. The data types
+work the same way with `entpawjzehwq0tbk`, though the bundles already carry every type, field and default; the
+editor's copy adds only the types you deleted, which are skipped anyway.
 
 **4. Convert.**
 
@@ -94,7 +96,7 @@ A NodeGX project folder:
 | pages, elements, the responsive layout | page components with Groups, Text, Buttons, Inputs, Images … laid out in rows and columns |
 | styles, colour and font tokens | style variants in `nodegx.styles.json`, Bubble's own token names as design tokens |
 | front-end workflows and expressions | node chains; each expression a JavaScript Expression node |
-| data types | collections with their fields |
+| data types | collections with typed columns, links to other types, and default values; Bubble's User is NodeGX's built-in `_User` |
 | option sets | a component each, its options as Static Data rows with every attribute |
 | reusable elements, custom states, searches | components, Variables, query nodes |
 | backend workflows | cloud functions; database triggers and recurring events become backend triggers, proposed in `backend/triggers.bubble.json` |
