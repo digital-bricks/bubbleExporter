@@ -53,7 +53,7 @@ what the NodeGX way would be.
 | HTML, Video, Map, Slider, Date, File and Picture inputs, plugin elements | a labelled placeholder (no NodeGX element yet) |
 | the responsive engine: row/column, gaps, alignment, fixed/fit/min/max sizes, *stretch* | flex direction, gaps, `alignItems`/`justifyContent`, width/height and size mode, `minWidth`/`maxWidth`, width 100% |
 | "not fixed width" (width 0 in the file) | width 100% between its min and max |
-| *Align to parent* containers | the biggest child stays in the flow and gives the container its height; the others are placed over it on the 3×3 grid |
+| *Align to parent* containers | the biggest child stays in the flow and gives the container its height; the others are placed over it on the 3×3 grid (Bubble names a cell horizontal first, then vertical, as [bubble_ex](https://github.com/ricotrevisan/bubble_ex) reads it) |
 | the old absolute layout | children placed by left/top inside a relative parent: renders right, edits badly |
 | a hidden element | `mounted: false` (Bubble collapses a hidden element; NodeGX's `visible: false` keeps its space) |
 | styles | variants in `nodegx.styles.json`, worn by the elements; hover / focus / pressed states become variant states |
@@ -65,7 +65,7 @@ what the NodeGX way would be.
 
 | Bubble | NodeGX |
 |---|---|
-| an expression (the `Message` chain) | one JavaScript `Expression` node; each thing it reads (an element's value, the current user, a URL parameter, the page width, an API call, the parent group's thing, a workflow parameter) is a wired input; operators come from a table of about 100 |
+| an expression (the `Message` chain) | one JavaScript `Expression` node; each thing it reads (an element's value, the current user, a URL parameter, the page width, an API call, the parent group's thing, a workflow parameter) is a wired input; operators come from a table of over 100 (22 of them from Rico Trevisan's [bubble_ex](https://github.com/ricotrevisan/bubble_ex), MIT) |
 | an event: button or element clicked, page loaded, input changed, custom event | the element's `onClick` / the page's `didMount` / `onTextChanged` / an `Event Receiver` |
 | *Do when condition is true* | Expression → `Value Changed` → `Condition`, so it fires on the change to true and not on every evaluation (wired straight, an action that changes what the condition reads re-fires it forever) |
 | the action chain | one node per step, each step's `done` firing the next; a step's *Only when* is a `Condition` in between; a step marked *Disable this step* is skipped |
@@ -105,10 +105,10 @@ Every result below was validated by NodeGX's own project validator.
 
 | app | what converted | validation |
 |---|---|---|
-| `v6/v6.json` in this repo (2023 test app: 3 pages, 22 elements, 40 styles, 2 workflows, an API call, a repeating group, 2 data types) | 22 of 22 elements, 3 of 3 actions, 32 of 40 styles (8 are for elements NodeGX does not have), 11 expressions with no unknown operator | 0 errors |
+| `examples/paid-export/test-app-v6.json` (2023 test app: 3 pages, 22 elements, 40 styles, 2 workflows, an API call, a repeating group, 2 data types) | 22 of 22 elements, 3 of 3 actions, 32 of 40 styles (8 are for elements NodeGX does not have), 11 expressions with no unknown operator | 0 errors |
 | a one-page landing template (header, hero, stats, benefits, pricing, call to action, footer: 188 elements, 14 workflows) | 188 of 188 elements, 21 of 21 actions; the NodeGX render matches Bubble's section by section, apart from the hero's column widths (see §4) | 0 errors, 0 console errors |
 | a six-year production app (22 pages, Bubble version 28) | 3,803 of 3,941 elements (96%; the rest are plugin elements), 637 workflows, 1,040 of 1,285 actions (81%; the rest are plugin actions, server-side email and scheduled workflows), 4,871 expressions, 235 searches, 45 option sets, 33 reusables, 40 data types | 0 errors on 11,556 nodes; the project opens with its workflows, data and styles intact, but does not run well yet (see §4) |
-| `examples/backend-workflows/` (every backend workflow kind, every built-in backend action, every field filled) | 4 of 4 workflows to cloud functions, 2 triggers proposed, 15 of 31 actions to real nodes; the other 16 are placeholders with a finding each | 0 errors |
+| `examples/editor-requests/backend-workflows-*.json` (every backend workflow kind, every built-in backend action, every field filled) | 4 of 4 workflows to cloud functions, 2 triggers proposed, 15 of 31 actions to real nodes; the other 16 are placeholders with a finding each | 0 errors |
 
 ## 4. What does not convert yet, and the known problems
 
