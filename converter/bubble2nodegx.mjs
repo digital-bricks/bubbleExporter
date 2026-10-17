@@ -75,9 +75,10 @@ for (const t of Object.values(userTypes)) for (const [fk, fd] of Object.entries(
 // hidden built-ins (Created Date, Modified Date, Created By) are not declared: reads go to createdAt, updatedAt, createdBy.
 const BUBBLE_COLUMN = { text: 'String', number: 'Number', boolean: 'Boolean', date: 'Date', image: 'String', file: 'String', geographic_address: 'Object', number_range: 'Object', date_range: 'Object', dateinterval: 'Number' };
 const bubbleColumn = (v) => { v = typeof v === 'string' ? v : 'text'; if (v.startsWith('list.')) return { type: 'Array' }; if (v === 'user' || v.startsWith('custom.')) return { type: 'Pointer', targetClass: collName(typeDisplay(v)) }; return { type: BUBBLE_COLUMN[v] || 'String' }; };
+// a field holding the thing's own unique id (`bubbleId`) is its objectId in bubble-data-to-nodegx.mjs, not a column
 const dbCollections = liveEntries(userTypes).filter(([, t]) => t.fields || t.display).map(([k, t]) => ({
   name: collName(typeDisplay(k)),
-  columns: liveEntries(t.fields).map(([fk, f]) => ({ name: f.display || fieldDisplay(k, fk), ...bubbleColumn(f.value), ...(f.default_val !== undefined ? { defaultValue: optionAttrValue(f.value, f.default_val) } : {}) })),
+  columns: liveEntries(t.fields).filter(([fk, f]) => !/^(unique[ _]?id|_id|bubble[ _]?id)$/i.test(f.display || fk)).map(([fk, f]) => ({ name: f.display || fieldDisplay(k, fk), ...bubbleColumn(f.value), ...(f.default_val !== undefined ? { defaultValue: optionAttrValue(f.value, f.default_val) } : {}) })),
   createdAt: null,
 }));
 for (const [k, t] of Object.entries(userTypes)) if (t.privacy_role) ai(`data type ${t.display || k}`, `privacy rules (${Object.keys(t.privacy_role).join(', ')}) are not converted; nodegx.security.json needs a human or an AI pass`);

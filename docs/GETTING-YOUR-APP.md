@@ -73,6 +73,15 @@ Bubble writes dates as text in your browser's time zone, so `--tz` names that zo
 collection into `out/myapp/backend/data/`, and `IMPORT-DATA.md` beside them with the commands that load them into a
 NodeGX backend.
 
-Each record keeps its Bubble unique id, so links between tables still point at the right record. That only works
-when the export includes the unique id. The JSON export we tested didn't, so check yours: without it, every link
-between tables is lost. Bubble never exports passwords, so imported users need to reset theirs.
+Neither the JSON nor the CSV export includes each record's unique id, and links between tables need it. Bubble's
+Data API has it, but only on a paid plan. On any plan, copy the id into a field before you export:
+
+1. Give each data type a text field called `bubbleId`.
+2. On any page, add a button whose workflow runs *Make changes to a list of things* on *Do a search for* that type,
+   setting `bubbleId` to *This thing's unique id*. Add one step for each type.
+3. Preview the page, press the button once, then export.
+
+The script reads `bubbleId` as the record's id. A record then keeps its Bubble id in NodeGX, so links between
+tables still point at the right record, and importing again updates records rather than duplicating them.
+Without it, every link between tables is lost, and `IMPORT-DATA.md` says so for each table. Bubble never exports
+passwords, so imported users need to reset theirs.

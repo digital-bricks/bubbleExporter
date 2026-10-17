@@ -32,6 +32,7 @@ function zoneOffset(ms, zone) {
 }
 // "Oct 17, 2026 3:05 pm" (the zone's wall clock) → ISO
 function bubbleDate(s) {
+  if (/^\d{4}-\d{2}-\d{2}T/.test(String(s))) { const d = new Date(s); return Number.isNaN(d.getTime()) ? undefined : d.toISOString(); } // the Data API's ISO dates (a paid plan's)
   const m = /^([A-Za-z]{3})[a-z]* (\d{1,2}), (\d{4})(?:,? (\d{1,2}):(\d{2})(?::(\d{2}))? ?([ap]m)?)?$/i.exec(String(s).trim());
   if (!m || MONTHS[m[1].toLowerCase()] === undefined) return undefined;
   let h = +(m[4] || 0); const ap = (m[7] || '').toLowerCase(); if (ap === 'pm' && h < 12) h += 12; if (ap === 'am' && h === 12) h = 0;
@@ -72,7 +73,7 @@ function value(t, raw, field) {
 // ---------------------------------------------------------------- the files
 function readRows(file) {
   const text = fs.readFileSync(file, 'utf8');
-  if (file.endsWith('.json')) return JSON.parse(text);
+  if (file.endsWith('.json')) { const j = JSON.parse(text); return Array.isArray(j) ? j : j?.response?.results ?? j?.results ?? []; } // the Data tab's array, or a Data API page
   const rows = []; let row = [], f = '', q = false; // RFC 4180
   for (let i = 0; i < text.length; i++) { const c = text[i];
     if (q) { if (c === '"' && text[i + 1] === '"') { f += '"'; i++; } else if (c === '"') q = false; else f += c; }
@@ -88,19 +89,26 @@ function typeOf(file) {
 }
 
 const outDir = path.join(projectDir, 'backend', 'data'); fs.mkdirSync(outDir, { recursive: true });
-const files = fs.readdirSync(dataDir).filter((f) => /\.(json|csv)$/i.test(f)).sort();
+// one file per type: the newest export (Bubble stamps the name with its time), JSON or CSV
+const stamp = (f) => (/_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/.exec(f) || [, f])[1];
+const newest = new Map();
+for (const f of fs.readdirSync(dataDir).filter((f) => /\.(json|csv)$/i.test(f)).sort((a, b) => stamp(a).localeCompare(stamp(b)))) {
+  const key = typeOf(f); if (!key) { note(f, 'no data type of the app matches this file name; skipped'); continue; }
+  if (newest.has(key)) note(newest.get(key), `an older export of the same type than ${f}; skipped`); newest.set(key, f);
+}
+const files = [...newest.values()];
 if (!files.length) { console.error(`no .json or .csv exports in ${dataDir}`); process.exit(2); }
 const written = []; let withoutIds = 0;
 for (const f of files) {
-  const key = typeOf(f); if (!key) { note(f, 'no data type of the app matches this file name; skipped'); continue; }
+  const key = typeOf(f);
   const t = userTypes[key]; const coll = typeName(key);
-  const fields = Object.fromEntries(live(t.fields).map(([fk, fd]) => [fd.display || fk, { key: fk, type: typeof fd.value === 'string' ? fd.value : 'text' }]));
+  const fields = Object.fromEntries(live(t.fields).filter(([fk, fd]) => !/^(unique[ _]?id|_id|bubble[ _]?id)$/i.test(fd.display || fk)).map(([fk, fd]) => [fd.display || fk, { key: fk, type: typeof fd.value === 'string' ? fd.value : 'text' }]));
   const rows = readRows(path.join(dataDir, f)); const records = []; const extra = new Set(); let noId = 0;
   rows.forEach((row, i) => {
     const rec = {};
     for (const [k, raw] of Object.entries(row)) {
       const lk = k.toLowerCase();
-      if (lk === 'unique id' || lk === '_id') { if (raw) rec.objectId = String(raw); continue; }
+      if (/^(unique[ _]?id|_id|bubble[ _]?id)$/i.test(k)) { if (raw) rec.objectId = String(raw); continue; } // Bubble's unique id: the Data API's `_id`, or a text field filled with "This thing's unique id" (no Data tab export carries it)
       if (lk === 'creation date' || lk === 'created date') { const d = raw && bubbleDate(raw); if (d) rec.createdAt = d; continue; }
       if (lk === 'modified date') { const d = raw && bubbleDate(raw); if (d) rec.updatedAt = d; continue; }
       if (lk === 'creator' || lk === 'created by') { if (BUBBLE_ID.test(String(raw))) rec.createdBy = String(raw); continue; } // "(App admin)": made in the editor, no user
