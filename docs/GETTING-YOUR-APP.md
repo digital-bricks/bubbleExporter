@@ -62,32 +62,30 @@ node converter/bubble2nodegx.mjs my-app.bubble out/myapp
 
 ## 4. Your data
 
-In the Bubble editor's Data tab, export each data type's records as JSON or CSV into a folder of their own. Keep
-Bubble's file names: the script uses them to tell which type each file holds. Then run:
+Bubble's Data tab exports the fields its current view shows, and the default view leaves out each record's unique
+id. Links between tables need that id. A view that shows every field includes it:
+
+1. In the Data tab, under App data, make a new view and call it something like "All fields".
+2. Pick the data type, then press *Select all* in the list of fields.
+3. Export the view as JSON or CSV into a folder of its own.
+4. Repeat for each data type.
+
+Then run:
 
 ```sh
 node converter/bubble-data-to-nodegx.mjs out/myapp.export.json in/myapp-data out/myapp --tz Europe/Paris
 ```
 
-Bubble writes dates as text in your browser's time zone, so `--tz` names that zone. The script writes one file per
-collection into `out/myapp/backend/data/`, and `IMPORT-DATA.md` beside them with the commands that load them into a
-NodeGX backend.
+Bubble writes dates as text in your browser's time zone, so `--tz` names that zone. The script works out each
+file's data type from its columns, and keeps the newest export when a type has more than one. It writes one file
+per collection into `out/myapp/backend/data/`. Beside them, `IMPORT-DATA.md` gives the commands that load them into
+a NodeGX backend.
 
-Neither the JSON nor the CSV export includes each record's unique id, and links between tables need it. The script
-recovers it. A Bubble id begins with its record's creation time in milliseconds (`1792241441972x…` was created at
-12:50:41 UTC), and the export gives each record's creation date to the minute. When another table links to an id and
-exactly one record of that type was created in that minute, that record gets the id. This needs the right `--tz`.
+Each record keeps its Bubble id in NodeGX, so links between tables still point at the right record. Importing
+again updates records rather than duplicating them. Bubble exports a link to a User as the user's email. The
+script turns it back into that user's id. Bubble never exports passwords, so imported users need to reset theirs.
 
-Two records of one type created in the same minute can't be told apart this way, and `IMPORT-DATA.md` lists each
-one. For those, copy the id into a field before you export (Bubble's Data API has the id too, but only on a paid
-plan):
-
-1. Give each data type a text field called `bubbleId`.
-2. On any page, add a button whose workflow runs *Make changes to a list of things* on *Do a search for* that type,
-   setting `bubbleId` to *This thing's unique id*. Add one step for each type.
-3. Preview the page, press the button once, then export.
-
-The script reads `bubbleId` as the record's id. A record then keeps its Bubble id in NodeGX, so links between
-tables still point at the right record, and importing again updates records rather than duplicating them.
-Without it, every link between tables is lost, and `IMPORT-DATA.md` says so for each table. Bubble never exports
-passwords, so imported users need to reset theirs.
+An export without the unique id still works for most links. A Bubble id begins with its record's creation time in
+milliseconds (`1792241441972x…` was created at 12:50:41 UTC). So when another table links to an id and exactly one
+record of that type was created in that minute, the script gives that record the id. Two records created in the
+same minute can't be told apart. `IMPORT-DATA.md` lists them.

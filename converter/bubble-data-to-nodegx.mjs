@@ -50,6 +50,7 @@ const BUBBLE_ID = /^\d{13}x\d{15,}$/; // a thing's unique id: "1792241441972x125
 function value(t, raw, field) {
   if (raw === '' || raw === null || raw === undefined) return null;
   if (t.startsWith('list.')) { const inner = t.slice(5); const xs = list(raw).map((x) => value(inner, x, field)); const bad = xs.find((x) => x && x.error); return bad || xs.filter((x) => x !== null); }
+  if (t === 'user' && !BUBBLE_ID.test(String(raw)) && /@/.test(String(raw))) return { userEmail: String(raw) }; // Bubble exports a link to a User as the user's email
   if (t === 'user' || t.startsWith('custom.')) return BUBBLE_ID.test(String(raw)) ? String(raw) : { error: `"${raw}" is not a unique id, so the link cannot be kept` };
   if (t.startsWith('option.')) { const set = optionSets[t.slice(7)]; const hit = live(set?.values).find(([k, o]) => o.display === raw || o.db_value === raw || k === raw); return hit ? hit[1].db_value ?? hit[0] : { error: `"${raw}" is not an option of ${set?.display || t.slice(7)}` }; }
   switch (t) {
@@ -85,7 +86,12 @@ function readRows(file) {
 // "export_All-someOtherDataTypes_2026-10-17_13-22-17.json" → the type whose name (or its plural) is in it
 function typeOf(file) {
   const m = /^export_All-(.+?)_\d{4}-\d{2}-\d{2}/.exec(path.basename(file)); const n = (m ? m[1] : path.basename(file, path.extname(file))).toLowerCase();
-  return live(userTypes).find(([k, t]) => { const d = String(t.display || k).toLowerCase(); return [d, `${d}s`, `${d}es`, d.replace(/y$/, 'ies')].includes(n); })?.[0];
+  const byName = live(userTypes).find(([k, t]) => { const d = String(t.display || k).toLowerCase(); return [d, `${d}s`, `${d}es`, d.replace(/y$/, 'ies')].includes(n); })?.[0];
+  if (byName) return byName;
+  // a view's export is named after the view ("export_ids_…"): the type whose fields the columns name
+  const cols = new Set(Object.keys(readRows(path.join(dataDir, file))[0] || {}));
+  const scored = live(userTypes).map(([k, t]) => [k, live(t.fields).filter(([fk, fd]) => cols.has(fd.display || fk)).length + (k === 'user' && cols.has('email') ? 1 : 0)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
+  return scored.length && (scored.length === 1 || scored[0][1] > scored[1][1]) ? scored[0][0] : undefined;
 }
 
 const outDir = path.join(projectDir, 'backend', 'data'); fs.mkdirSync(outDir, { recursive: true });
@@ -111,10 +117,11 @@ for (const f of files) {
       if (/^(unique[ _]?id|_id|bubble[ _]?id)$/i.test(k)) { if (raw) rec.objectId = String(raw); continue; } // Bubble's unique id: the Data API's `_id`, or a text field filled with "This thing's unique id" (no Data tab export carries it)
       if (lk === 'creation date' || lk === 'created date') { const d = raw && bubbleDate(raw); if (d) rec.createdAt = d; continue; }
       if (lk === 'modified date') { const d = raw && bubbleDate(raw); if (d) rec.updatedAt = d; continue; }
-      if (lk === 'creator' || lk === 'created by') { if (BUBBLE_ID.test(String(raw))) rec.createdBy = String(raw); continue; } // "(App admin)": made in the editor, no user
+      if (lk === 'creator' || lk === 'created by') { if (BUBBLE_ID.test(String(raw))) rec.createdBy = String(raw); else if (/@/.test(String(raw))) rec.createdBy = { userEmail: String(raw) }; continue; } // "(App admin)": made in the editor, no user
       if (lk === 'slug') { if (raw) { rec.Slug = String(raw); extra.add('Slug'); } continue; }
       if (key === 'user' && lk === 'email') { if (raw) { rec.email = String(raw); rec.username = String(raw); } continue; } // NodeGX signs in by username; the converter's sign-up sets it to the email
-      const fd = fields[k]; if (!fd) { note(`${coll} row ${i + 1}`, `"${k}" is not a field of ${t.display || key} (deleted, or a built-in this does not know); left out`); continue; }
+      const fd = fields[k]; if (!fd && (raw === '' || raw == null)) continue;
+      if (!fd) { note(`${coll} row ${i + 1}`, `"${k}" is not a field of ${t.display || key} (deleted, or a built-in this does not know); left out`); continue; }
       const v = value(fd.type, raw, k);
       if (v && typeof v === 'object' && v.error) note(`${coll} row ${i + 1}`, `${k}: ${v.error}; left empty`);
       else if (v !== null) rec[k] = v;
@@ -153,8 +160,14 @@ for (const [tk, ids] of refs) {
     else for (const id of wanted) note(tb.coll, rows.length ? `${id}: ${rows.length} rows were created in its minute (${at(m * 6e4)}) and ${wanted.length} linked ids name it, so which is which cannot be told; links to it point nowhere` : `${id}: no exported row was created in its minute (${at(m * 6e4)}): deleted, not exported, or --tz is not the zone the export was made in; links to it point nowhere`);
   }
 }
+// links to Users by email → the user's id (the users' export carries their email and, from a view, their unique id)
+const users = tables.find((x) => x.key === 'user')?.records || []; let byEmail = 0;
+const userId = (v, where) => { if (!v || typeof v !== 'object' || !v.userEmail) return v; const u = users.find((r) => r.email && r.email.toLowerCase() === v.userEmail.toLowerCase()); if (u?.objectId) { byEmail++; return u.objectId; } note(where, `${v.userEmail}: ${u ? 'that user has no unique id in the export' : 'no exported user has that email'}; the link points nowhere`); return undefined; };
+for (const tb of tables) tb.records.forEach((rec, i) => { for (const [k, v] of Object.entries(rec)) { const where = `${tb.coll} row ${i + 1}`; if (Array.isArray(v) && v.some((x) => x && x.userEmail)) rec[k] = v.map((x) => userId(x, where)).filter((x) => x !== undefined); else if (v && v.userEmail) { const id = userId(v, where); if (id === undefined) delete rec[k]; else rec[k] = id; } } });
 const written = []; let withoutIds = 0;
 for (const { key, coll, f, columns, records } of tables) {
+  // an id's first part is its creation time in ms: the exact time behind the minute the export wrote
+  for (const r of records) if (r.objectId && BUBBLE_ID.test(r.objectId) && r.createdAt && minuteOf(Number(r.objectId.split('x')[0])) === minuteOf(Date.parse(r.createdAt))) { r.createdAt = new Date(Number(r.objectId.split('x')[0])).toISOString(); if (r.updatedAt && r.updatedAt < r.createdAt) r.updatedAt = r.createdAt; }
   const noId = records.filter((r) => !r.objectId).length; withoutIds += noId;
   if (noId) note(coll, `${noId} of ${records.length} rows have no unique id and nothing links to them: each gets a new one on import`);
   const out = path.join(outDir, `${coll}.json`);
@@ -171,4 +184,4 @@ const report = [
   ...written.map((w) => `nodegx-backend import ${w.coll} backend/data/${w.file} --format json --data-dir <the backend's data dir>`), '```', '',
   `## Findings (${findings.length})`, '', '| where | what |', '|---|---|', ...findings.map((x) => `| ${x.where} | ${x.what.replace(/\|/g, '\\|')} |`), ''].join('\n');
 fs.writeFileSync(path.join(outDir, 'IMPORT-DATA.md'), report);
-console.log(`${written.map((w) => `${w.coll} ${w.count}`).join(', ')} → ${path.relative(process.cwd(), outDir) || outDir}; dates read in ${tz}; ids recovered from creation times ${recovered}; findings ${findings.length}${withoutIds ? `; ${withoutIds} rows given a new id` : ''}`);
+console.log(`${written.map((w) => `${w.coll} ${w.count}`).join(', ')} → ${path.relative(process.cwd(), outDir) || outDir}; dates read in ${tz}; ids recovered from creation times ${recovered}; links to users by email ${byEmail}; findings ${findings.length}${withoutIds ? `; ${withoutIds} rows given a new id` : ''}`);
