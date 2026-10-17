@@ -1,0 +1,7 @@
+.DS_Store
+# a Bubble app's run-mode bundles can carry live keys (static.js holds plugin secrets): never commit one
+*.dynamic.js
+static.js
+exports/
+out/
+in/

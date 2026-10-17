@@ -1,41 +1,134 @@
 # Bubble Exporter
 
-## Background
+Turn a Bubble app into a [NodeGX](https://github.com/The-Low-Code-Foundation/NodeGX) project you own: pages,
+elements, styles, workflows, data types and backend workflows, as plain files you can open, edit, run and deploy
+anywhere.
 
-After years of Bubble creating vendor lock-in, and the imminent pricing change after last year's community survey and trial run, Bubble have finally dropped the new pricing model to the dismay of many of their developers. Many now speak of leaving Bubble and moving to other platforms. 
+Two small Node.js scripts with no dependencies do the work:
 
-I (Richard Osborne) don't think this is the solution, as Bubble still provides a lightning fast way to create web app front ends and event listeners. 
+- **`converter/bubble-run-bundle-to-export.mjs`** gets an app's definition without Bubble's paid export. It reads the
+  files a Bubble page already sends to every visitor, plus one request from the Bubble editor for the backend
+  workflows.
+- **`converter/bubble2nodegx.mjs`** turns that definition (or a paid `.bubble` export) into a NodeGX project folder,
+  and writes a report of everything it could not convert.
 
-The solution may be found in trying to reverse engineer the JSON export that paid Bubble apps are allowed to create. This JSON export contains a complete configuration of any Bubble app, minus the database structure and data.
+It is early work, and honest about it: every conversion writes `docs/IMPORT-REPORT.md` into the project, listing each
+thing that still needs a person. [docs/FINDINGS.md](docs/FINDINGS.md) says what converts today, what was measured
+and what does not convert yet.
 
-This project is my attempt to compare JSON exports in small increments of Bubble development to isolate and translate their JSON into HTML elements, CSS styles and Javascript functions. 
+## Quick start
 
-## Project structure
+You need Node.js 18 or later. Nothing to install.
 
-Each 'V' represents one small development increment and one Bubble JSON export, to be compared to the previous ones. So V0 was the vanilla Bubble app with an index page, 404 page and reset password page. V1 added one workflow action. V2 added several visual elements and a database writing action, etc.
+```sh
+git clone https://github.com/digital-bricks/bubbleExporter.git
+cd bubbleExporter
 
-In each V folder I've added the raw JSON output as well as an extraction of what code has been added to that JSON since the previous V. 
+# 1. A paid Bubble export (this repo's own 2023 test app)
+node converter/bubble2nodegx.mjs v6/v6.json out/v6
+cat out/v6/docs/IMPORT-REPORT.md
 
-## Main project objective
+# 2. Backend workflows alone (from the examples in this repo)
+mkdir -p in/backend && cp examples/backend-workflows/example-c5r6j-filled.json in/backend/
+node converter/bubble-run-bundle-to-export.mjs in/backend out/backend.export.json
+node converter/bubble2nodegx.mjs out/backend.export.json out/backend
+```
 
-The objective of this project is to create a translation dictionary of Bubble JSON objects to HTML, CSS and Javascript, in the end to have an AI model like GPT4 process any Bubble JSON export and be able to output HTML, CSS and Javascript files, ready to be connected to an external database of choice.
+Then open the output folder in the NodeGX editor. The converter replaces the output folder each time it runs.
 
-## Addtional objectives
+## Converting your own app
 
-An ideal additional objective would be to make the translation dictionary able to output in Dart or React Native, especially Dart as the app could theoretically be imported into Flutterflow. Perhaps Flutterflow could even become an 'importer' of Bubble migrants. Backendless would also be a candidate Bubble refugee camp, as their tool matches Bubble on functionality and uses pure HTML, CSS and Javascript to execute its websites.
+You need your app's pages and, if it has any, its backend workflows. None of it needs a paid plan.
 
-In any case, let's find a way to help people move away from Bubble when and if they feel it's necessary, and stop the vendor lock-in.
+**1. The pages.** Each page of a Bubble app loads a file called `dynamic.js` that holds the whole app definition
+(settings, data types, option sets, styles, reusable elements) plus that page's elements and workflows. Fetch one per
+page:
 
-## Useful links
+```sh
+mkdir -p in/myapp && cd in/myapp
+for p in index about pricing; do            # your page names
+  curl -sL -A "Mozilla/5.0 Chrome/130.0" -o "$p.html" "https://<your-app>.bubbleapps.io/version-test/$p"
+  d=$(grep -o '/package/dynamic_js/[^"]*dynamic.js' "$p.html" | head -1)
+  curl -sL -A "Mozilla/5.0 Chrome/130.0" -o "$p.dynamic.js" "https://<your-app>.bubbleapps.io$d"
+done
+cd ../..
+```
 
-This is the view-only Bubble app I'm using to change and export: [https://bubble.io/page?name=index&id=test-bubble-export&tab=tabs-1](https://bubble.io/page?name=index&id=test-bubble-export&tab=tabs-1)
+A page behind a login serves the index page instead. For those, sign in to your app in the browser, open DevTools →
+Network, reload the page, find the request ending in `dynamic.js` and save its response into the same folder.
 
-This Bubble blog post from co-founder Joss Haas in 2018 explains how Bubble apps are stored as Abstract Syntax Trees (ASTs) and delivered to the user's browser using their JSONbase layer to avoid waiting for the huge JSON export file to load and be dealt with before showing the page: [https://bubble.io/blog/trees-in-the-clouds/amp/](https://bubble.io/blog/trees-in-the-clouds/amp/)
+**2. The backend workflows.** These are never sent to the browser of someone using your app. Only the Bubble editor
+loads them. Open your app in the Bubble editor with DevTools → Network open, filter on `c5r6j`, and save the response
+of the request ending in `/c5r6j` (it looks like
+`https://bubble.io/appeditor/load_single_path/<app>/<version>/<hash>/c5r6j`) into the same folder as any file whose
+name contains `c5r6j` and ends in `.json`.
 
-There are three more articles explaining more about how this system works in the series of 4 total blog posts:
+**3. Convert.**
 
-Part 2/4: [https://bubble.io/blog/trees-in-the-clouds-part-ii/](https://bubble.io/blog/trees-in-the-clouds-part-ii/)
+```sh
+node converter/bubble-run-bundle-to-export.mjs in/myapp out/myapp.export.json
+node converter/bubble2nodegx.mjs out/myapp.export.json out/myapp
+```
 
-Part 3/4: [https://bubble.io/blog/using-simple-indexes-to-optimize-complicated-sorts-in-postgres/](https://bubble.io/blog/using-simple-indexes-to-optimize-complicated-sorts-in-postgres/)
+> **Never commit or share the bundles.** A Bubble app's `static.js`, and sometimes its `dynamic.js`, can carry API
+> keys and plugin secrets, because Bubble sends them to the browser. One app we converted had a payment provider's
+> test secret, two Google keys and two webhook secrets in its `static.js`. This repo's `.gitignore` ignores them. Use these
+> scripts on apps you own.
 
-Part 4/4: [https://bubble.io/blog/look-ma-no-master-decentralized-integration/](https://bubble.io/blog/look-ma-no-master-decentralized-integration/)
+## What you get
+
+A NodeGX project folder:
+
+| Bubble | NodeGX |
+|---|---|
+| pages, elements, the responsive layout | page components with Groups, Text, Buttons, Inputs, Images … laid out in rows and columns |
+| styles, colour and font tokens | style variants in `nodegx.styles.json`, Bubble's own token names as design tokens |
+| front-end workflows and expressions | node chains; each expression a JavaScript Expression node |
+| data types | collections with their fields |
+| option sets, reusable elements, custom states, searches | components, Static Data, Variables, query nodes |
+| backend workflows | cloud functions; database triggers and recurring events become backend triggers, proposed in `backend/triggers.bubble.json` |
+
+The full mapping, with what each one is in NodeGX, is in [docs/FINDINGS.md](docs/FINDINGS.md).
+
+## NodeGX documentation
+
+- [Coming from Bubble](https://the-low-code-foundation.github.io/NodeGX/docs/coming-from-bubble/): every Bubble
+  operator, and what it is in NodeGX, in Bubble's vocabulary.
+- [Bubble to NodeGX dictionary](https://the-low-code-foundation.github.io/NodeGX/docs/bubble-dictionary/): a real
+  Bubble page and the NodeGX project it becomes, side by side, element by element. *(Publishing soon.)*
+- [How export works](https://the-low-code-foundation.github.io/NodeGX/docs/how-export-works/): how a NodeGX
+  project becomes a React app you own, node by node. *(Publishing soon.)*
+
+## Where this started (2023)
+
+In 2023 Bubble changed its pricing, and many developers talked about leaving. I thought the answer was not to give up
+on Bubble's editor, which is a fast way to build front ends, but to stop the lock-in: read the JSON that describes a
+Bubble app and translate it into something you own.
+
+The `v0` … `v6` folders are that first study. Each one is one small change to a test app and its JSON export, with
+notes on what the change added. V0 is a new Bubble app; V1 adds a workflow action; V2 adds visual elements and a
+database write, and so on. The converter grew out of them, and `v6/v6.json` is still its first test.
+
+Bubble's own engineering blog explains how apps are stored as trees and sent to the browser in pieces, which is what
+made the run-mode route possible:
+
+- [Trees in the clouds](https://bubble.io/blog/trees-in-the-clouds/amp/) (Josh Haas, 2018)
+- [Part 2](https://bubble.io/blog/trees-in-the-clouds-part-ii/) ·
+  [Part 3](https://bubble.io/blog/using-simple-indexes-to-optimize-complicated-sorts-in-postgres/) ·
+  [Part 4](https://bubble.io/blog/look-ma-no-master-decentralized-integration/)
+
+The view-only Bubble app used for the 2023 exports:
+[test-bubble-export](https://bubble.io/page?name=index&id=test-bubble-export&tab=tabs-1).
+
+## Contributing
+
+The converter is one table of Bubble shapes and their NodeGX equivalents. Each new Bubble feature is one more row, and
+then every app that uses it converts. The most useful contribution is an example: a small Bubble app or backend
+workflow using a feature the report lists as not converted, saved as described above (from a test app, never one
+with real keys or data), in an issue or a pull request under `examples/`.
+
+## License
+
+[GPL-3.0](LICENSE), the same license as NodeGX. Copyright © 2023–2026 Richard Osborne.
+
+Bubble is a trademark of Bubble Group, Inc. This project is not affiliated with or endorsed by Bubble.
