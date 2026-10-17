@@ -142,7 +142,11 @@ Each of these is a known shape: a table row still to write, a NodeGX node still 
   continuously: queries with no backend to answer, sizes sent as strings, the placeholder `__bubble(…)` for unknown
   operators (not defined at run time), show/hide wired to a component instance that has no such input. Each is
   measured and is converter work; together they are why the next step is small templates, one feature at a time.
-- **Data.** Rows are not imported yet; the collections are declared, ready for a CSV importer.
+- **Data: the unique id.** `bubble-data-to-nodegx.mjs` keeps each record's Bubble unique id as its NodeGX id, so
+  links between tables survive. The Data tab's JSON export we tested has no unique id column, so each record gets a
+  new id and every link between tables is lost. Whether the CSV export, or a view showing the unique id, includes it
+  isn't known yet. A filled list, geographic address or range hasn't been seen in an export yet either, and Bubble
+  never exports passwords.
 - **Ranges and date intervals.** A number range or date range field is declared as an Object and a date interval as
   a Number, but no example holds a value yet, so their stored shape and unit are not known. Dates are milliseconds
   since 1970 (a field's default of 1 January 1970, midnight in Paris, is stored as `-3600000`).

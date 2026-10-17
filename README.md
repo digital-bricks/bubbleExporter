@@ -21,6 +21,9 @@ node converter/bubble2nodegx.mjs examples/paid-export/test-app-v6.json out/test-
 mkdir -p in/editor && cp examples/editor-requests/*.json in/editor/
 node converter/bubble-run-bundle-to-export.mjs in/editor out/editor.export.json
 node converter/bubble2nodegx.mjs out/editor.export.json out/editor
+
+# Sample records from Bubble's Data tab, as files the NodeGX backend imports
+node converter/bubble-data-to-nodegx.mjs out/editor.export.json examples/data-export out/editor --tz Europe/Paris
 ```
 
 Open `out/test-app` or `out/editor` in the NodeGX editor. Each one has `docs/IMPORT-REPORT.md`, which lists what
@@ -30,7 +33,8 @@ still needs a person. Running the converter again replaces its output folder.
 
 1. Save each page's `dynamic.js` file into one folder.
 2. If your app has backend workflows, save one request from the Bubble editor into the same folder.
-3. Run the two scripts on that folder.
+3. Run the first two scripts on that folder.
+4. To bring your data, export each table from Bubble's Data tab and run the third script.
 
 [docs/GETTING-YOUR-APP.md](docs/GETTING-YOUR-APP.md) shows each step. Never commit the files you download. Bubble
 sends some API keys and plugin secrets to the browser with them.
@@ -62,9 +66,9 @@ sends some API keys and plugin secrets to the browser with them.
 
 | folder | what it holds |
 |---|---|
-| `converter/` | the two scripts |
+| `converter/` | the three scripts |
 | `docs/` | how to get your app's files, and the findings |
-| `examples/` | a paid export and the Bubble editor requests the commands above use |
+| `examples/` | a paid export, the Bubble editor requests and the Data tab exports the commands above use |
 | `archive/2023-study/` | the 2023 study the converter grew out of |
 
 [CHANGELOG.md](CHANGELOG.md) lists what changed and when.

@@ -59,3 +59,20 @@ export skips the first script:
 ```sh
 node converter/bubble2nodegx.mjs my-app.bubble out/myapp
 ```
+
+## 4. Your data
+
+In the Bubble editor's Data tab, export each data type's records as JSON or CSV into a folder of their own. Keep
+Bubble's file names: the script uses them to tell which type each file holds. Then run:
+
+```sh
+node converter/bubble-data-to-nodegx.mjs out/myapp.export.json in/myapp-data out/myapp --tz Europe/Paris
+```
+
+Bubble writes dates as text in your browser's time zone, so `--tz` names that zone. The script writes one file per
+collection into `out/myapp/backend/data/`, and `IMPORT-DATA.md` beside them with the commands that load them into a
+NodeGX backend.
+
+Each record keeps its Bubble unique id, so links between tables still point at the right record. That only works
+when the export includes the unique id. The JSON export we tested didn't, so check yours: without it, every link
+between tables is lost. Bubble never exports passwords, so imported users need to reset theirs.
