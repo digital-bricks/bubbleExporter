@@ -146,7 +146,8 @@ Each of these is a known shape: a table row still to write, a NodeGX node still 
   that does answers 401 on a free plan, even in the test version. `bubble-data-to-nodegx.mjs` recovers the id of
   every record another table links to: a Bubble id begins with its record's creation time in milliseconds, and the
   export gives the creation date to the minute. Two records of one type created in the same minute can't be told
-  apart; a `bubbleId` field filled before the export covers those ([GETTING-YOUR-APP.md](GETTING-YOUR-APP.md)). A filled list, geographic address or range hasn't been seen in an export yet either, and Bubble
+  apart; a `bubbleId` field filled before the export covers those ([GETTING-YOUR-APP.md](GETTING-YOUR-APP.md)).
+  A filled list, geographic address or range hasn't been seen in an export yet either, and Bubble
   never exports passwords.
 - **Ranges and date intervals.** A number range or date range field is declared as an Object and a date interval as
   a Number, but no example holds a value yet, so their stored shape and unit are not known. Dates are milliseconds
