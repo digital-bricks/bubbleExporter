@@ -73,8 +73,14 @@ Bubble writes dates as text in your browser's time zone, so `--tz` names that zo
 collection into `out/myapp/backend/data/`, and `IMPORT-DATA.md` beside them with the commands that load them into a
 NodeGX backend.
 
-Neither the JSON nor the CSV export includes each record's unique id, and links between tables need it. Bubble's
-Data API has it, but only on a paid plan. On any plan, copy the id into a field before you export:
+Neither the JSON nor the CSV export includes each record's unique id, and links between tables need it. The script
+recovers it. A Bubble id begins with its record's creation time in milliseconds (`1792241441972x…` was created at
+12:50:41 UTC), and the export gives each record's creation date to the minute. When another table links to an id and
+exactly one record of that type was created in that minute, that record gets the id. This needs the right `--tz`.
+
+Two records of one type created in the same minute can't be told apart this way, and `IMPORT-DATA.md` lists each
+one. For those, copy the id into a field before you export (Bubble's Data API has the id too, but only on a paid
+plan):
 
 1. Give each data type a text field called `bubbleId`.
 2. On any page, add a button whose workflow runs *Make changes to a list of things* on *Do a search for* that type,

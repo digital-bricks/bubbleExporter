@@ -98,7 +98,7 @@ for (const f of fs.readdirSync(dataDir).filter((f) => /\.(json|csv)$/i.test(f)).
 }
 const files = [...newest.values()];
 if (!files.length) { console.error(`no .json or .csv exports in ${dataDir}`); process.exit(2); }
-const written = []; let withoutIds = 0;
+const tables = [];
 for (const f of files) {
   const key = typeOf(f);
   const t = userTypes[key]; const coll = typeName(key);
@@ -122,13 +122,41 @@ for (const f of files) {
     if (!rec.objectId) noId++;
     records.push(rec);
   });
-  if (noId) { withoutIds += noId; note(coll, `${noId} of ${rows.length} rows have no unique id: each gets a new one on import, so a link to them from another table points nowhere`); }
   // the columns, as bubble2nodegx.mjs declares them, so the backend types each value
   const COL = { text: 'String', number: 'Number', boolean: 'Boolean', date: 'Date', image: 'String', file: 'String', geographic_address: 'Object', number_range: 'Object', date_range: 'Object', dateinterval: 'Number' };
   const columns = Object.entries(fields).map(([name, fd]) => ({ name, ...(fd.type.startsWith('list.') ? { type: 'Array' } : fd.type === 'user' || fd.type.startsWith('custom.') ? { type: 'Pointer', targetClass: typeName(fd.type.replace(/^custom\./, '')) } : { type: COL[fd.type] || 'String' }) }));
   if (records.some((r) => r.createdBy)) columns.push({ name: 'createdBy', type: 'Pointer', targetClass: '_User' });
   for (const x of extra) columns.push({ name: x, type: 'String' });
   if (key === 'user') columns.push({ name: 'email', type: 'String' }, { name: 'username', type: 'String' });
+  tables.push({ key, coll, f, fields, columns, records });
+}
+
+// The unique ids. No Data tab export carries a row's own id, but a Bubble id starts with its thing's creation time in
+// ms ("1792241441972x…" = 12:50:41.972Z) and the export gives each row's Creation Date to the minute. So an id another
+// table links to names the minute its row was made: when exactly one row of the linked type was created in that
+// minute, that row is the one, and it takes the id (and its creation time back to the millisecond).
+const refs = new Map(); // linked type key → ids
+const ref = (tk, id) => { if (BUBBLE_ID.test(String(id))) (refs.get(tk) ?? refs.set(tk, new Set()).get(tk)).add(String(id)); };
+for (const tb of tables) for (const rec of tb.records) {
+  for (const [name, fd] of Object.entries(tb.fields)) { const target = fd.type.replace(/^list\./, ''); if (target === 'user' || target.startsWith('custom.')) for (const id of [].concat(rec[name] ?? [])) ref(target.replace(/^custom\./, ''), id); }
+  if (rec.createdBy) ref('user', rec.createdBy);
+}
+let recovered = 0; const minuteOf = (ms) => Math.floor(ms / 6e4); const at = (ms) => new Date(ms).toISOString().slice(0, 16) + 'Z';
+for (const [tk, ids] of refs) {
+  const tb = tables.find((x) => x.key === tk);
+  if (!tb) { note(typeName(tk), `other tables link to ${ids.size} of its records, but it was not exported: those links point nowhere`); continue; }
+  const known = new Set(tb.records.map((r) => r.objectId).filter(Boolean)); const byMinute = new Map();
+  for (const id of ids) if (!known.has(id)) { const m = minuteOf(Number(id.split('x')[0])); (byMinute.get(m) ?? byMinute.set(m, []).get(m)).push(id); }
+  for (const [m, wanted] of byMinute) {
+    const rows = tb.records.filter((r) => !r.objectId && r.createdAt && minuteOf(Date.parse(r.createdAt)) === m);
+    if (wanted.length === 1 && rows.length === 1) { rows[0].objectId = wanted[0]; rows[0].createdAt = new Date(Number(wanted[0].split('x')[0])).toISOString(); if (rows[0].updatedAt && rows[0].updatedAt < rows[0].createdAt) rows[0].updatedAt = rows[0].createdAt; recovered++; } // a minute-rounded Modified Date can fall before the exact creation time
+    else for (const id of wanted) note(tb.coll, rows.length ? `${id}: ${rows.length} rows were created in its minute (${at(m * 6e4)}) and ${wanted.length} linked ids name it, so which is which cannot be told; links to it point nowhere` : `${id}: no exported row was created in its minute (${at(m * 6e4)}): deleted, not exported, or --tz is not the zone the export was made in; links to it point nowhere`);
+  }
+}
+const written = []; let withoutIds = 0;
+for (const { key, coll, f, columns, records } of tables) {
+  const noId = records.filter((r) => !r.objectId).length; withoutIds += noId;
+  if (noId) note(coll, `${noId} of ${records.length} rows have no unique id and nothing links to them: each gets a new one on import`);
   const out = path.join(outDir, `${coll}.json`);
   fs.writeFileSync(out, JSON.stringify({ format: 'nodegx-collection', version: 1, collection: coll, exportedAt: new Date().toISOString(), source: { bubbleType: key, file: f, timeZone: tz }, schema: { columns }, count: records.length, records }, null, 2) + '\n');
   written.push({ coll, file: path.basename(out), count: records.length, from: f });
@@ -137,10 +165,10 @@ if (written.some((w) => w.coll === '_User')) note('_User', 'Bubble never exports
 
 const report = [
   '# Data import', '',
-  `From the Bubble data exports in \`${path.basename(dataDir)}\`. Dates were read as wall-clock times in **${tz}** (Bubble writes them in the exporting browser's zone, to the minute).`, '',
+  `From the Bubble data exports in \`${path.basename(dataDir)}\`. Dates were read as wall-clock times in **${tz}** (Bubble writes them in the exporting browser's zone, to the minute). ${recovered} unique ids were recovered: a linked record's id begins with its creation time, which matched one exported row.`, '',
   '| collection | rows | from |', '|---|---|---|', ...written.map((w) => `| ${w.coll} | ${w.count} | ${w.from} |`), '',
   'Load them into a bound backend (the backend must be stopped, or use its admin import):', '', '```sh',
   ...written.map((w) => `nodegx-backend import ${w.coll} backend/data/${w.file} --format json --data-dir <the backend's data dir>`), '```', '',
   `## Findings (${findings.length})`, '', '| where | what |', '|---|---|', ...findings.map((x) => `| ${x.where} | ${x.what.replace(/\|/g, '\\|')} |`), ''].join('\n');
 fs.writeFileSync(path.join(outDir, 'IMPORT-DATA.md'), report);
-console.log(`${written.map((w) => `${w.coll} ${w.count}`).join(', ')} → ${path.relative(process.cwd(), outDir) || outDir}; dates read in ${tz}; findings ${findings.length}${withoutIds ? `; ${withoutIds} rows without a unique id` : ''}`);
+console.log(`${written.map((w) => `${w.coll} ${w.count}`).join(', ')} → ${path.relative(process.cwd(), outDir) || outDir}; dates read in ${tz}; ids recovered from creation times ${recovered}; findings ${findings.length}${withoutIds ? `; ${withoutIds} rows given a new id` : ''}`);

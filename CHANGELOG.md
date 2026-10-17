@@ -18,7 +18,8 @@
   Deleted types and fields are skipped.
 - `converter/bubble-data-to-nodegx.mjs` turns the Data tab's exports (JSON or CSV) into files the NodeGX backend
   imports, one per collection. Values are read by each field's type, dates in the time zone you name, and each
-  record keeps its Bubble unique id when the export has one, or a `bubbleId` field holding it. With JSON and CSV
+  record linked to from another table gets its Bubble unique id back from its creation time, or from a `bubbleId`
+  field. With JSON and CSV
   exports of one type in the folder, the newest is used.
 - `docs/FINDINGS.md`: what converts into what, what was measured, and what doesn't convert yet.
 - `docs/GETTING-YOUR-APP.md`: how to collect an app's files on any plan.
